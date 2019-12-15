@@ -1,0 +1,13 @@
+pi@raspberrypi:~/src/kazam/volk/build $ ~/local/bin/volk_profile -R accu -v 2048 -i 100000
+
+RUN_VOLK_TESTS: volk_32f_accumulator_s32f(2048,100000)
+no architectures to test
+RUN_VOLK_TESTS: volk_32fc_accumulator_s32fc(2048,100000)
+neon_a16 completed in 351.853 ms
+neon_a32 completed in 174.447 ms
+neon_a64 completed in 155.109 ms
+neon_a64pre completed in 167.476 ms
+generic completed in 217.732 ms
+Best aligned arch: neon_a64
+Best unaligned arch: neon_a64
+
