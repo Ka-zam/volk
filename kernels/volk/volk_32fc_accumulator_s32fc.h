@@ -103,9 +103,6 @@ volk_32fc_accumulator_s32fc_u_avx(lv_32fc_t* result, const lv_32fc_t* inputBuffe
 }
 #endif /* LV_HAVE_AVX */
 
-
-
-
 #ifdef LV_HAVE_SSE
 #include <xmmintrin.h>
 
@@ -140,6 +137,194 @@ volk_32fc_accumulator_s32fc_u_sse(lv_32fc_t* result, const lv_32fc_t* inputBuffe
   *result = returnValue;
 }
 #endif  /* LV_HAVE_SSE */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+static inline void
+volk_32fc_accumulator_s32fc_neon_a16(lv_32fc_t* result, const lv_32fc_t* inputBuffer, unsigned int num_points)
+{
+  const lv_32fc_t* aPtr = inputBuffer;
+  unsigned int number = 0;
+  lv_32fc_t returnValue = lv_cmake(0.f, 0.f);
+  unsigned int halfPoints = num_points / 2;
+  float32x4_t in_vec;
+  float32x4_t out_vec0 = {0.f, 0.f, 0.f ,0.f};
+  float tempBuffer[4];
+
+  for(;number < halfPoints; number++){
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec0 = vaddq_f32( in_vec, out_vec0);
+    aPtr += 2;
+  }
+  vst1q_f32(tempBuffer, out_vec0);
+  returnValue  = lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  number = halfPoints * 2;
+  for(;number < num_points; number++){
+    returnValue += (*aPtr++);
+  }
+  *result = returnValue;
+}
+#endif /* LV_HAVE_NEON */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+static inline void
+volk_32fc_accumulator_s32fc_neon_a32(lv_32fc_t* result, const lv_32fc_t* inputBuffer, unsigned int num_points)
+{
+  const lv_32fc_t* aPtr = inputBuffer;
+  unsigned int number = 0;
+  lv_32fc_t returnValue = lv_cmake(0.f, 0.f);
+  unsigned int quarterPoints = num_points / 4;
+  float32x4_t in_vec;
+  float32x4_t out_vec0 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec1 = {0.f, 0.f, 0.f ,0.f};
+  float tempBuffer[4];
+
+  for(;number < quarterPoints; number++){
+
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec0 = vaddq_f32( in_vec, out_vec0);
+    aPtr += 2;
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec1 = vaddq_f32( in_vec, out_vec1);
+    aPtr += 2;
+  }
+  vst1q_f32(tempBuffer, out_vec0);
+  returnValue  = lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec1);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  number = quarterPoints * 4;
+  for(;number < num_points; number++){
+    returnValue += (*aPtr++);
+  }
+  *result = returnValue;
+}
+#endif /* LV_HAVE_NEON */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+static inline void
+volk_32fc_accumulator_s32fc_neon_a64(lv_32fc_t* result, const lv_32fc_t* inputBuffer, unsigned int num_points)
+{
+  const lv_32fc_t* aPtr = inputBuffer;
+  unsigned int number = 0;
+  lv_32fc_t returnValue = lv_cmake(0.f, 0.f);
+  unsigned int eighthPoints = num_points / 8;
+  float32x4_t in_vec;
+  float32x4_t out_vec0 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec1 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec2 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec3 = {0.f, 0.f, 0.f ,0.f};
+  float tempBuffer[4];
+
+  for(;number < eighthPoints; number++){
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec0 = vaddq_f32( in_vec, out_vec0);
+    aPtr += 2;
+
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec1 = vaddq_f32( in_vec, out_vec1);
+    aPtr += 2;
+
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec2 = vaddq_f32( in_vec, out_vec2);
+    aPtr += 2;
+
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec3 = vaddq_f32( in_vec, out_vec3);
+    aPtr += 2;
+  }
+  vst1q_f32(tempBuffer, out_vec0);
+  returnValue  = lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec1);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec2);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec3);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  number = eighthPoints * 8;
+  for(;number < num_points; number++){
+    returnValue += (*aPtr++);
+  }
+  *result = returnValue;
+}
+#endif /* LV_HAVE_NEON */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+static inline void
+volk_32fc_accumulator_s32fc_neon_a64pre(lv_32fc_t* result, const lv_32fc_t* inputBuffer, unsigned int num_points)
+{
+  const lv_32fc_t* aPtr = inputBuffer;
+  unsigned int number = 0;
+  lv_32fc_t returnValue = lv_cmake(0.f, 0.f);
+  unsigned int eighthPoints = num_points / 8;
+  float32x4_t in_vec;
+  float32x4_t out_vec0 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec1 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec2 = {0.f, 0.f, 0.f ,0.f};
+  float32x4_t out_vec3 = {0.f, 0.f, 0.f ,0.f};
+  float tempBuffer[4];
+
+  for(;number < eighthPoints; number++){
+    __VOLK_PREFETCH(aPtr + 2);
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec0 = vaddq_f32( in_vec, out_vec0);
+
+    aPtr += 2;
+    __VOLK_PREFETCH(aPtr + 2);
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec1 = vaddq_f32( in_vec, out_vec1);
+
+    aPtr += 2;
+    __VOLK_PREFETCH(aPtr + 2);
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec2 = vaddq_f32( in_vec, out_vec2);
+
+    aPtr += 2;
+    __VOLK_PREFETCH(aPtr + 2);
+    in_vec = vld1q_f32( (float*) aPtr);
+    out_vec3 = vaddq_f32( in_vec, out_vec3);
+
+    aPtr += 2;
+  }
+  vst1q_f32(tempBuffer, out_vec0);
+  returnValue  = lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec1);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec2);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  vst1q_f32(tempBuffer, out_vec3);
+  returnValue += lv_cmake( tempBuffer[0], tempBuffer[1] );
+  returnValue += lv_cmake( tempBuffer[2], tempBuffer[3] );
+
+  number = eighthPoints * 8;
+  for(;number < num_points; number++){
+    returnValue += (*aPtr++);
+  }
+  *result = returnValue;
+}
+#endif /* LV_HAVE_NEON */
 
 #ifdef LV_HAVE_GENERIC
 static inline void
