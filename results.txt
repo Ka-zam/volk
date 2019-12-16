@@ -40,3 +40,18 @@ generic completed in 457.01 ms
 Best aligned arch: neon_a64
 Best unaligned arch: neon_a64
 Warning: this was a dry-run. Config not generated
+
+RPI3_AARCH64
+ubuntu@ubuntu:~/src/kazam/volk/build$ ~/local/bin/volk_profile -n -R 32fc_acc -v 2048 -i 100000
+
+Warning: this IS a dry-run. Config will not be written!
+RUN_VOLK_TESTS: volk_32fc_accumulator_s32fc(2048,100000)
+neon_a16 completed in 534.705 ms
+neon_a32 completed in 323.763 ms
+neon_a64 completed in 287.522 ms
+neon_a64pre completed in 356.684 ms
+generic completed in 547.368 ms
+Best aligned arch: neon_a64
+Best unaligned arch: neon_a64
+Warning: this was a dry-run. Config not generated
+
