@@ -1,3 +1,4 @@
+RPI4_AARCH32
 pi@raspberrypi:~/src/kazam/volk/build $ ~/local/bin/volk_profile -R accu -v 2048 -i 100000
 
 RUN_VOLK_TESTS: volk_32f_accumulator_s32f(2048,100000)
@@ -12,6 +13,7 @@ Best aligned arch: neon_a64
 Best unaligned arch: neon_a64
 
 
+RPI4_AARCH64
 demouser@pi64 ~/src/kazam/volk/build $ ~/local/bin/volk_profile -n -R 32fc_accu -v 2048 -i 100000
 
 Warning: this IS a dry-run. Config will not be written!
@@ -21,6 +23,20 @@ neon_a32 completed in 127.246 ms
 neon_a64 completed in 121.798 ms
 neon_a64pre completed in 163.544 ms
 generic completed in 225.768 ms
+Best aligned arch: neon_a64
+Best unaligned arch: neon_a64
+Warning: this was a dry-run. Config not generated
+
+RPI3_AARCH32
+pi@raspberrypi:~/src/kazam/volk/build $ ~/local/bin/volk_profile -n -R 32fc_accu -v 2048 -i 100000
+
+Warning: this IS a dry-run. Config will not be written!
+RUN_VOLK_TESTS: volk_32fc_accumulator_s32fc(2048,100000)
+neon_a16 completed in 507.864 ms
+neon_a32 completed in 374.103 ms
+neon_a64 completed in 339.62 ms
+neon_a64pre completed in 371.35 ms
+generic completed in 457.01 ms
 Best aligned arch: neon_a64
 Best unaligned arch: neon_a64
 Warning: this was a dry-run. Config not generated
