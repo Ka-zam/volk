@@ -55,3 +55,16 @@ Best aligned arch: neon_a64
 Best unaligned arch: neon_a64
 Warning: this was a dry-run. Config not generated
 
+1700X_X86
+pc:~/src/kazam/volk$ ~/local/bin/volk_profile -n -R 32fc_acc -v 2048 -i 100000
+
+Warning: this IS a dry-run. Config will not be written!
+RUN_VOLK_TESTS: volk_32fc_accumulator_s32fc(2048,100000)
+u_avx completed in 55.9209 ms
+u_sse completed in 96.2594 ms
+generic completed in 193.711 ms
+Best aligned arch: u_avx
+Best unaligned arch: u_avx
+Warning: this was a dry-run. Config not generated
+
+
