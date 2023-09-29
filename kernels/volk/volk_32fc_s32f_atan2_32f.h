@@ -58,13 +58,10 @@
  * \endcode
  */
 
-
 #ifndef INCLUDED_volk_32fc_s32f_atan2_32f_a_H
 #define INCLUDED_volk_32fc_s32f_atan2_32f_a_H
 
-#include <inttypes.h>
 #include <math.h>
-#include <stdio.h>
 
 #if LV_HAVE_AVX2 && LV_HAVE_FMA
 #include <immintrin.h>
