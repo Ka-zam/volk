@@ -98,7 +98,7 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2_fma(float* outputVector,
             _mm256_and_ps(y, abs_mask), _mm256_and_ps(x, abs_mask), _CMP_GT_OS);
         __m256 input = _mm256_div_ps(_mm256_blendv_ps(y, x, swap_mask),
                                      _mm256_blendv_ps(x, y, swap_mask));
-        __m256 result = _m256_arctan_approximation_avx2_fma(input);
+        __m256 result = _m256_arctan_poly_avx2_fma(input);
 
         input =
             _mm256_sub_ps(_mm256_or_ps(pi_2, _mm256_and_ps(input, sign_mask)), result);
@@ -160,7 +160,7 @@ static inline void volk_32fc_s32f_atan2_32f_u_avx2_fma(float* outputVector,
             _mm256_and_ps(y, abs_mask), _mm256_and_ps(x, abs_mask), _CMP_GT_OS);
         __m256 input = _mm256_div_ps(_mm256_blendv_ps(y, x, swap_mask),
                                      _mm256_blendv_ps(x, y, swap_mask));
-        __m256 result = _m256_arctan_approximation_avx2_fma(input);
+        __m256 result = _m256_arctan_poly_avx2_fma(input);
 
         input =
             _mm256_sub_ps(_mm256_or_ps(pi_2, _mm256_and_ps(input, sign_mask)), result);
@@ -195,7 +195,7 @@ static inline void volk_32fc_s32f_atan2_32f_generic(float* outputVector,
 {
     float* outPtr = outputVector;
     const float* inPtr = (float*)inputVector;
-    const float invNormalizeFactor = 1.0 / normalizeFactor;
+    const float invNormalizeFactor = 1.f / normalizeFactor;
     unsigned int number;
     for (number = 0; number < num_points; number++) {
         const float real = *inPtr++;
