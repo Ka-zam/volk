@@ -61,9 +61,7 @@
 #ifndef INCLUDED_volk_32fc_s32f_atan2_32f_a_H
 #define INCLUDED_volk_32fc_s32f_atan2_32f_a_H
 
-#include <inttypes.h>
 #include <math.h>
-#include <stdio.h>
 
 #ifdef LV_HAVE_SSE4_1
 #include <smmintrin.h>
