@@ -76,11 +76,9 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2_fma(float* outputVector,
 
     const float invNormalizeFactor = 1.f / normalizeFactor;
     const __m256 vinvNormalizeFactor = _mm256_set1_ps(invNormalizeFactor);
-    const __m256 pi = _mm256_set1_ps(0x1.921fb6p1f);   // pi
-    const __m256 pi_2 = _mm256_set1_ps(0x1.921fb6p0f); // pi / 2
-    const __m256i permute_mask = _mm256_set_epi32(7, 6, 3, 2, 5, 4, 1, 0);
+    const __m256 pi = _mm256_set1_ps(0x1.921fb6p1f);
+    const __m256 pi_2 = _mm256_set1_ps(0x1.921fb6p0f);
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-    ;
     const __m256 sign_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000));
 
     unsigned int number = 0;
@@ -120,7 +118,7 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2_fma(float* outputVector,
     for (; number < num_points; number++) {
         const float x = *in++;
         const float y = *in++;
-        *out++ = atan2f(y, x) * invNormalizeFactor;
+        *out++ = volk_atan2(y, x) * invNormalizeFactor;
     }
 }
 #endif /* LV_HAVE_AVX2 && LV_HAVE_FMA for aligned */
@@ -138,11 +136,9 @@ static inline void volk_32fc_s32f_atan2_32f_u_avx2_fma(float* outputVector,
 
     const float invNormalizeFactor = 1.f / normalizeFactor;
     const __m256 vinvNormalizeFactor = _mm256_set1_ps(invNormalizeFactor);
-    const __m256 pi = _mm256_set1_ps(0x1.921fb6p1f);   // pi
-    const __m256 pi_2 = _mm256_set1_ps(0x1.921fb6p0f); // pi / 2
-    const __m256i permute_mask = _mm256_set_epi32(7, 6, 3, 2, 5, 4, 1, 0);
+    const __m256 pi = _mm256_set1_ps(0x1.921fb6p1f);
+    const __m256 pi_2 = _mm256_set1_ps(0x1.921fb6p0f);
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-    ;
     const __m256 sign_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000));
 
     unsigned int number = 0;
@@ -182,10 +178,29 @@ static inline void volk_32fc_s32f_atan2_32f_u_avx2_fma(float* outputVector,
     for (; number < num_points; number++) {
         const float x = *in++;
         const float y = *in++;
-        *out++ = atan2f(y, x) * invNormalizeFactor;
+        *out++ = volk_atan2(y, x) * invNormalizeFactor;
     }
 }
 #endif /* LV_HAVE_AVX2 && LV_HAVE_FMA for aligned */
+
+#ifdef LV_HAVE_GENERIC
+#include <volk/volk_common.h>
+static inline void volk_32fc_s32f_atan2_32f_polynomial(float* outputVector,
+                                                    const lv_32fc_t* inputVector,
+                                                    const float normalizeFactor,
+                                                    unsigned int num_points)
+{
+    float* outPtr = outputVector;
+    const float* inPtr = (float*)inputVector;
+    const float invNormalizeFactor = 1.f / normalizeFactor;
+    unsigned int number = 0;
+    for (; number < num_points; number++) {
+        const float x = *inPtr++;
+        const float y = *inPtr++;
+        *outPtr++ = volk_atan2(y, x) * invNormalizeFactor;
+    }
+}
+#endif /* LV_HAVE_GENERIC */
 
 #ifdef LV_HAVE_GENERIC
 static inline void volk_32fc_s32f_atan2_32f_generic(float* outputVector,
@@ -196,8 +211,8 @@ static inline void volk_32fc_s32f_atan2_32f_generic(float* outputVector,
     float* outPtr = outputVector;
     const float* inPtr = (float*)inputVector;
     const float invNormalizeFactor = 1.f / normalizeFactor;
-    unsigned int number;
-    for (number = 0; number < num_points; number++) {
+    unsigned int number = 0;
+    for (; number < num_points; number++) {
         const float real = *inPtr++;
         const float imag = *inPtr++;
         *outPtr++ = atan2f(imag, real) * invNormalizeFactor;
