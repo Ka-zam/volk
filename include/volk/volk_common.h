@@ -217,7 +217,7 @@ static inline float volk_arctan(const float x)
 }
 
 ////////////////////////////////////////////////////////////////////////
-// atan2(y, x)
+// arctan2(y, x)
 ////////////////////////////////////////////////////////////////////////
 static inline float volk_atan2(const float y, const float x)
 {
@@ -228,17 +228,20 @@ static inline float volk_atan2(const float y, const float x)
      *                |  sign(y) * PI / 2      if x = 0
      *                \  undefined             if x = 0 and y = 0
      * atan2f(0.f, 0.f) shall return 0.f
-    */
+     */
     const float pi = 0x1.921fb6p1f;
     const float pi_2 = 0x1.921fb6p0f;
 
-    if (x == 0.f) { return (y == 0.f) ? copysignf(0.f, y) : copysignf(pi_2, y) ;}
+    if (x == 0.f) {
+        return (y == 0.f) ? copysignf(0.f, y) : copysignf(pi_2, y);
+    }
     const int swap = fabs(x) < fabs(y);
     const float input = swap ? (x / y) : (y / x);
     float result = volk_arctan_poly(input);
     result = swap ? (input >= 0.f ? pi_2 : -pi_2) - result : result;
-    if (x == 0.f) { result = (y == 0.f) ? 0.f : copysignf(pi_2, y);}
-    if (x < 0.f)  { result += copysignf(pi, y);}
+    if (x < 0.f) {
+        result += copysignf(pi, y);
+    }
     return result;
 }
 
