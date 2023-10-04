@@ -62,11 +62,12 @@
 #define INCLUDED_volk_32fc_s32f_atan2_32f_a_H
 
 #include <math.h>
+#include <stdio.h>
 
 #if LV_HAVE_AVX2 && LV_HAVE_FMA
 #include <immintrin.h>
 #include <volk/volk_avx2_fma_intrinsics.h>
-static inline void volk_32fc_s32f_atan2_32f_a_avx2_fma(float* outputVector,
+static inline void volk_32fc_s32f_atan2_32f_a_avx2(float* outputVector,
                                                        const lv_32fc_t* complexVector,
                                                        const float normalizeFactor,
                                                        unsigned int num_points)
@@ -126,7 +127,7 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2_fma(float* outputVector,
 #if LV_HAVE_AVX2 && LV_HAVE_FMA
 #include <immintrin.h>
 #include <volk/volk_avx2_fma_intrinsics.h>
-static inline void volk_32fc_s32f_atan2_32f_u_avx2_fma(float* outputVector,
+static inline void volk_32fc_s32f_atan2_32f_u_avx2(float* outputVector,
                                                        const lv_32fc_t* complexVector,
                                                        const float normalizeFactor,
                                                        unsigned int num_points)
@@ -183,6 +184,7 @@ static inline void volk_32fc_s32f_atan2_32f_u_avx2_fma(float* outputVector,
 }
 #endif /* LV_HAVE_AVX2 && LV_HAVE_FMA for aligned */
 
+
 #ifdef LV_HAVE_GENERIC
 #include <volk/volk_common.h>
 static inline void volk_32fc_s32f_atan2_32f_polynomial(float* outputVector,
@@ -190,6 +192,7 @@ static inline void volk_32fc_s32f_atan2_32f_polynomial(float* outputVector,
                                                     const float normalizeFactor,
                                                     unsigned int num_points)
 {
+    printf("%s\n", "polynomial got called");
     float* outPtr = outputVector;
     const float* inPtr = (float*)inputVector;
     const float invNormalizeFactor = 1.f / normalizeFactor;
@@ -201,6 +204,7 @@ static inline void volk_32fc_s32f_atan2_32f_polynomial(float* outputVector,
     }
 }
 #endif /* LV_HAVE_GENERIC */
+
 
 #ifdef LV_HAVE_GENERIC
 static inline void volk_32fc_s32f_atan2_32f_generic(float* outputVector,

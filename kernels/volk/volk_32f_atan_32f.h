@@ -65,6 +65,8 @@
 static inline void
 volk_32f_atan_32f_a_avx2_fma(float* out, const float* in, unsigned int num_points)
 {
+    #include <stdio.h>
+    printf("%s\n", "volk_32f_atan_32f_a_avx2_fma");
     const __m256 one = _mm256_set1_ps(1.f);
     const __m256 pi_over_2 = _mm256_set1_ps(0x1.921fb6p0f);
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
@@ -173,6 +175,8 @@ volk_32f_atan_32f_a_sse4_1(float* out, const float* in, unsigned int num_points)
 static inline void
 volk_32f_atan_32f_u_avx2_fma(float* out, const float* in, unsigned int num_points)
 {
+    #include <stdio.h>
+    printf("%s\n", "volk_32f_atan_32f_u_avx2_fma");       
     const __m256 one = _mm256_set1_ps(1.f);
     const __m256 pi_over_2 = _mm256_set1_ps(0x1.921fb6p0f);
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
@@ -207,6 +211,8 @@ volk_32f_atan_32f_u_avx2_fma(float* out, const float* in, unsigned int num_point
 static inline void
 volk_32f_atan_32f_u_avx2(float* out, const float* in, unsigned int num_points)
 {
+    #include <stdio.h>
+    printf("%s\n", "volk_32f_atan_32f_u_avx2");    
     const __m256 one = _mm256_set1_ps(1.f);
     const __m256 pi_over_2 = _mm256_set1_ps(0x1.921fb6p0f);
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
@@ -275,6 +281,8 @@ volk_32f_atan_32f_u_sse4_1(float* out, const float* in, unsigned int num_points)
 static inline void
 volk_32f_atan_32f_polynomial(float* out, const float* in, unsigned int num_points)
 {
+        #include <stdio.h>
+    printf("%s\n", "polynomial");  
     unsigned int number = 0;
     for (; number < num_points; number++) {
         *out++ = volk_arctan(*in++);
@@ -286,6 +294,8 @@ volk_32f_atan_32f_polynomial(float* out, const float* in, unsigned int num_point
 static inline void
 volk_32f_atan_32f_generic(float* out, const float* in, unsigned int num_points)
 {
+        #include <stdio.h>
+    printf("%s\n", "  generic called");     
     unsigned int number = 0;
     for (; number < num_points; number++) {
         *out++ = atanf(*in++);
