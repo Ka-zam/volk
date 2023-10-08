@@ -83,6 +83,26 @@ static inline void volk_32fc_s32f_atan2_32f_generic(float* outputVector,
 
 #ifdef LV_HAVE_GENERIC
 #include <volk/volk_common.h>
+
+static inline void volk_32fc_s32f_atan2_32f_gr_atan2(float* outputVector,
+                                                       const lv_32fc_t* inputVector,
+                                                       const float normalizeFactor,
+                                                       unsigned int num_points)
+{
+    float* outPtr = outputVector;
+    const float* inPtr = (float*)inputVector;
+    const float invNormalizeFactor = 1.f / normalizeFactor;
+    unsigned int number = 0;
+    for (; number < num_points; number++) {
+        const float x = *inPtr++;
+        const float y = *inPtr++;
+        *outPtr++ = my_atan2f(y, x) * invNormalizeFactor;
+    }
+}
+#endif /* LV_HAVE_GENERIC */
+
+#ifdef LV_HAVE_GENERIC
+#include <volk/volk_common.h>
 static inline void volk_32fc_s32f_atan2_32f_polynomial(float* outputVector,
                                                        const lv_32fc_t* inputVector,
                                                        const float normalizeFactor,
