@@ -75,7 +75,7 @@ static inline void volk_16i_max_star_horizontal_16i_a_ssse3(int16_t* target,
         0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
     };
 
-    __m128i xmm0, xmm1, xmm2, xmm3, xmm4;
+    __m128i xmm0, xmm1={}, xmm2, xmm3, xmm4;
     __m128i xmm5, xmm6, xmm7, xmm8;
 
     xmm4 = _mm_load_si128((__m128i*)shufmask0);
