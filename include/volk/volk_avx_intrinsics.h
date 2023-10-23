@@ -18,6 +18,19 @@
 #include <immintrin.h>
 
 /*
+ * First order Newton-Raphson approximation of 1 / sqrt(a)
+ * x_1 = x_0 * (1.5 - .5 * x_0 * a)
+ */
+static inline __m256 _mm256_rsqrt_1_avx_ps(const __m256 a)
+{
+    const __m256 HALF = _mm256_set1_ps(0x1.0p-1f); // 0.5f
+    const __m256 THREE_HALFS = _mm256_set1_ps(0x1.8p0f); // 1.5f
+    const __m256 x0 = _mm256_rsqrt_ps(a);
+    const __m256 x1 = _mm256_mul_ps(x0, _mm256_sub_ps(THREE_HALFS,  _mm256_mul_ps(HALF, _mm256_mul_ps(_mm256_mul_ps(x0, x0), a))));
+    return x1;
+}
+
+/*
  * First order Newton-Raphson approximation of 1 / x
  * x_1 = x_0 * (2 - x_0 * x)
  */
