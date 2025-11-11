@@ -62,6 +62,23 @@
 #include <stdio.h>
 #include <volk/volk_complex.h>
 
+#ifdef LV_HAVE_GENERIC
+static inline void volk_32fc_x2_multiply_32fc_generic(lv_32fc_t* cVector,
+                                                      const lv_32fc_t* aVector,
+                                                      const lv_32fc_t* bVector,
+                                                      unsigned int num_points)
+{
+    lv_32fc_t* cPtr = cVector;
+    const lv_32fc_t* aPtr = aVector;
+    const lv_32fc_t* bPtr = bVector;
+    unsigned int number = 0;
+
+    for (number = 0; number < num_points; number++) {
+        *cPtr++ = (*aPtr++) * (*bPtr++);
+    }
+}
+#endif /* LV_HAVE_GENERIC */
+
 #if LV_HAVE_AVX2 && LV_HAVE_FMA
 #include <immintrin.h>
 /*!
@@ -77,42 +94,184 @@ static inline void volk_32fc_x2_multiply_32fc_u_avx2_fma(lv_32fc_t* cVector,
                                                          unsigned int num_points)
 {
     unsigned int number = 0;
-    const unsigned int quarterPoints = num_points / 4;
+    const unsigned int eighthPoints = num_points / 8;
 
     lv_32fc_t* c = cVector;
     const lv_32fc_t* a = aVector;
     const lv_32fc_t* b = bVector;
 
-    for (; number < quarterPoints; number++) {
+    __m256 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m256 x0_swap, x1_swap;
 
-        const __m256 x =
-            _mm256_loadu_ps((float*)a); // Load the ar + ai, br + bi as ar,ai,br,bi
-        const __m256 y =
-            _mm256_loadu_ps((float*)b); // Load the cr + ci, dr + di as cr,ci,dr,di
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex values (16 floats) - 2x unrolled
+        x0 = _mm256_loadu_ps((float*)a);       // Load ar0,ai0,br0,bi0,cr0,ci0,dr0,di0
+        x1 = _mm256_loadu_ps((float*)(a + 4)); // Load ar1,ai1,br1,bi1,cr1,ci1,dr1,di1
+        y0 = _mm256_loadu_ps((float*)b);       // Load er0,ei0,fr0,fi0,gr0,gi0,hr0,hi0
+        y1 = _mm256_loadu_ps((float*)(b + 4)); // Load er1,ei1,fr1,fi1,gr1,gi1,hr1,hi1
 
-        const __m256 yl = _mm256_moveldup_ps(y); // Load yl with cr,cr,dr,dr
-        const __m256 yh = _mm256_movehdup_ps(y); // Load yh with ci,ci,di,di
+        __VOLK_PREFETCH(a + 16);
+        __VOLK_PREFETCH(b + 16);
 
-        const __m256 tmp2x = _mm256_permute_ps(x, 0xB1); // Re-arrange x to be ai,ar,bi,br
+        yl0 = _mm256_moveldup_ps(y0); // er0,er0,fr0,fr0,gr0,gr0,hr0,hr0
+        yl1 = _mm256_moveldup_ps(y1); // er1,er1,fr1,fr1,gr1,gr1,hr1,hr1
+        yh0 = _mm256_movehdup_ps(y0); // ei0,ei0,fi0,fi0,gi0,gi0,hi0,hi0
+        yh1 = _mm256_movehdup_ps(y1); // ei1,ei1,fi1,fi1,gi1,gi1,hi1,hi1
 
-        const __m256 tmp2 = _mm256_mul_ps(tmp2x, yh); // tmp2 = ai*ci,ar*ci,bi*di,br*di
+        x0_swap = _mm256_permute_ps(x0, 0xB1); // ai0,ar0,bi0,br0,ci0,cr0,di0,dr0
+        x1_swap = _mm256_permute_ps(x1, 0xB1); // ai1,ar1,bi1,br1,ci1,cr1,di1,dr1
 
-        const __m256 z = _mm256_fmaddsub_ps(
-            x, yl, tmp2); // ar*cr-ai*ci, ai*cr+ar*ci, br*dr-bi*di, bi*dr+br*di
+        tmp0 = _mm256_mul_ps(x0_swap, yh0); // ai0*ei0,ar0*ei0,bi0*fi0,br0*fi0,...
+        tmp1 = _mm256_mul_ps(x1_swap, yh1); // ai1*ei1,ar1*ei1,bi1*fi1,br1*fi1,...
 
-        _mm256_storeu_ps((float*)c, z); // Store the results back into the C container
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        // fmaddsub: x*y + {-z, +z, -z, +z, ...}
+        // Result: ar*cr - ai*ci, ai*cr + ar*ci (exactly what we need!)
+        z0 = _mm256_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm256_fmaddsub_ps(x1, yl1, tmp1);
 
-        a += 4;
-        b += 4;
-        c += 4;
+        _mm256_storeu_ps((float*)c, z0);
+        _mm256_storeu_ps((float*)(c + 4), z1);
+
+        a += 8;
+        b += 8;
+        c += 8;
     }
 
-    number = quarterPoints * 4;
-    for (; number < num_points; number++) {
-        *c++ = (*a++) * (*b++);
-    }
+    number = eighthPoints * 8;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
 }
 #endif /* LV_HAVE_AVX2 && LV_HAVE_FMA */
+
+
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+/*!
+  \brief Multiplies the two input complex vectors and stores their results in the third
+  vector
+  \param cVector The vector where the results will be stored
+  \param aVector One of the vectors to be multiplied
+  \param bVector One of the vectors to be multiplied
+  \param num_points The number of complex values in aVector and bVector to be multiplied
+  together and stored into cVector
+*/
+static inline void volk_32fc_x2_multiply_32fc_u_avx512f(lv_32fc_t* cVector,
+                                                        const lv_32fc_t* aVector,
+                                                        const lv_32fc_t* bVector,
+                                                        unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    lv_32fc_t* c = cVector;
+    const lv_32fc_t* a = aVector;
+    const lv_32fc_t* b = bVector;
+
+    __m512 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m512 x0_swap, x1_swap;
+
+    for (; number < sixteenthPoints; number++) {
+        // Load 16 complex values (32 floats) - 2x unrolled
+        x0 = _mm512_loadu_ps((float*)a);       // Load 8 complex values
+        x1 = _mm512_loadu_ps((float*)(a + 8)); // Load 8 more complex values
+        y0 = _mm512_loadu_ps((float*)b);       // Load 8 complex values
+        y1 = _mm512_loadu_ps((float*)(b + 8)); // Load 8 more complex values
+
+        __VOLK_PREFETCH(a + 32);
+        __VOLK_PREFETCH(b + 32);
+
+        yl0 = _mm512_moveldup_ps(y0); // Duplicate real parts
+        yl1 = _mm512_moveldup_ps(y1);
+        yh0 = _mm512_movehdup_ps(y0); // Duplicate imaginary parts
+        yh1 = _mm512_movehdup_ps(y1);
+
+        x0_swap = _mm512_permute_ps(x0, 0xB1); // Swap real and imaginary
+        x1_swap = _mm512_permute_ps(x1, 0xB1);
+
+        tmp0 = _mm512_mul_ps(x0_swap, yh0);
+        tmp1 = _mm512_mul_ps(x1_swap, yh1);
+
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        z0 = _mm512_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm512_fmaddsub_ps(x1, yl1, tmp1);
+
+        _mm512_storeu_ps((float*)c, z0);
+        _mm512_storeu_ps((float*)(c + 8), z1);
+
+        a += 16;
+        b += 16;
+        c += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
+}
+#endif /* LV_HAVE_AVX512F */
+
+
+#if LV_HAVE_AVX512F && LV_HAVE_AVX512DQ
+#include <immintrin.h>
+/*!
+  \brief Multiplies the two input complex vectors and stores their results in the third
+  vector (AVX-512F+DQ variant)
+  \param cVector The vector where the results will be stored
+  \param aVector One of the vectors to be multiplied
+  \param bVector One of the vectors to be multiplied
+  \param num_points The number of complex values in aVector and bVector to be multiplied
+  together and stored into cVector
+*/
+static inline void volk_32fc_x2_multiply_32fc_u_avx512f_dq(lv_32fc_t* cVector,
+                                                           const lv_32fc_t* aVector,
+                                                           const lv_32fc_t* bVector,
+                                                           unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    lv_32fc_t* c = cVector;
+    const lv_32fc_t* a = aVector;
+    const lv_32fc_t* b = bVector;
+
+    __m512 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m512 x0_swap, x1_swap;
+
+    for (; number < sixteenthPoints; number++) {
+        // Load 16 complex values (32 floats) - 2x unrolled
+        x0 = _mm512_loadu_ps((float*)a);       // Load 8 complex values
+        x1 = _mm512_loadu_ps((float*)(a + 8)); // Load 8 more complex values
+        y0 = _mm512_loadu_ps((float*)b);       // Load 8 complex values
+        y1 = _mm512_loadu_ps((float*)(b + 8)); // Load 8 more complex values
+
+        __VOLK_PREFETCH(a + 32);
+        __VOLK_PREFETCH(b + 32);
+
+        yl0 = _mm512_moveldup_ps(y0); // Duplicate real parts
+        yl1 = _mm512_moveldup_ps(y1);
+        yh0 = _mm512_movehdup_ps(y0); // Duplicate imaginary parts
+        yh1 = _mm512_movehdup_ps(y1);
+
+        x0_swap = _mm512_permute_ps(x0, 0xB1); // Swap real and imaginary
+        x1_swap = _mm512_permute_ps(x1, 0xB1);
+
+        tmp0 = _mm512_mul_ps(x0_swap, yh0);
+        tmp1 = _mm512_mul_ps(x1_swap, yh1);
+
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        z0 = _mm512_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm512_fmaddsub_ps(x1, yl1, tmp1);
+
+        _mm512_storeu_ps((float*)c, z0);
+        _mm512_storeu_ps((float*)(c + 8), z1);
+
+        a += 16;
+        b += 16;
+        c += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
+}
+#endif /* LV_HAVE_AVX512F && LV_HAVE_AVX512DQ */
 
 
 #ifdef LV_HAVE_AVX
@@ -125,27 +284,35 @@ static inline void volk_32fc_x2_multiply_32fc_u_avx(lv_32fc_t* cVector,
                                                     unsigned int num_points)
 {
     unsigned int number = 0;
-    const unsigned int quarterPoints = num_points / 4;
+    const unsigned int eighthPoints = num_points / 8;
 
-    __m256 x, y, z;
+    __m256 x0, y0, z0, x1, y1, z1;
     lv_32fc_t* c = cVector;
     const lv_32fc_t* a = aVector;
     const lv_32fc_t* b = bVector;
 
-    for (; number < quarterPoints; number++) {
-        x = _mm256_loadu_ps(
-            (float*)a); // Load the ar + ai, br + bi ... as ar,ai,br,bi ...
-        y = _mm256_loadu_ps(
-            (float*)b); // Load the cr + ci, dr + di ... as cr,ci,dr,di ...
-        z = _mm256_complexmul_ps(x, y);
-        _mm256_storeu_ps((float*)c, z); // Store the results back into the C container
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex values (16 floats) - 2x unrolled
+        x0 = _mm256_loadu_ps((float*)a);       // ar0,ai0,br0,bi0,cr0,ci0,dr0,di0
+        y0 = _mm256_loadu_ps((float*)b);       // er0,ei0,fr0,fi0,gr0,gi0,hr0,hi0
+        x1 = _mm256_loadu_ps((float*)(a + 4)); // ar1,ai1,br1,bi1,cr1,ci1,dr1,di1
+        y1 = _mm256_loadu_ps((float*)(b + 4)); // er1,ei1,fr1,fi1,gr1,gi1,hr1,hi1
 
-        a += 4;
-        b += 4;
-        c += 4;
+        __VOLK_PREFETCH(a + 16);
+        __VOLK_PREFETCH(b + 16);
+
+        z0 = _mm256_complexmul_ps(x0, y0);
+        z1 = _mm256_complexmul_ps(x1, y1);
+
+        _mm256_storeu_ps((float*)c, z0);
+        _mm256_storeu_ps((float*)(c + 4), z1);
+
+        a += 8;
+        b += 8;
+        c += 8;
     }
 
-    number = quarterPoints * 4;
+    number = eighthPoints * 8;
 
     for (; number < num_points; number++) {
         *c++ = (*a++) * (*b++);
@@ -188,26 +355,6 @@ static inline void volk_32fc_x2_multiply_32fc_u_sse3(lv_32fc_t* cVector,
 }
 #endif /* LV_HAVE_SSE */
 
-
-#ifdef LV_HAVE_GENERIC
-
-static inline void volk_32fc_x2_multiply_32fc_generic(lv_32fc_t* cVector,
-                                                      const lv_32fc_t* aVector,
-                                                      const lv_32fc_t* bVector,
-                                                      unsigned int num_points)
-{
-    lv_32fc_t* cPtr = cVector;
-    const lv_32fc_t* aPtr = aVector;
-    const lv_32fc_t* bPtr = bVector;
-    unsigned int number = 0;
-
-    for (number = 0; number < num_points; number++) {
-        *cPtr++ = (*aPtr++) * (*bPtr++);
-    }
-}
-#endif /* LV_HAVE_GENERIC */
-
-
 #endif /* INCLUDED_volk_32fc_x2_multiply_32fc_u_H */
 #ifndef INCLUDED_volk_32fc_x2_multiply_32fc_a_H
 #define INCLUDED_volk_32fc_x2_multiply_32fc_a_H
@@ -232,42 +379,184 @@ static inline void volk_32fc_x2_multiply_32fc_a_avx2_fma(lv_32fc_t* cVector,
                                                          unsigned int num_points)
 {
     unsigned int number = 0;
-    const unsigned int quarterPoints = num_points / 4;
+    const unsigned int eighthPoints = num_points / 8;
 
     lv_32fc_t* c = cVector;
     const lv_32fc_t* a = aVector;
     const lv_32fc_t* b = bVector;
 
-    for (; number < quarterPoints; number++) {
+    __m256 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m256 x0_swap, x1_swap;
 
-        const __m256 x =
-            _mm256_load_ps((float*)a); // Load the ar + ai, br + bi as ar,ai,br,bi
-        const __m256 y =
-            _mm256_load_ps((float*)b); // Load the cr + ci, dr + di as cr,ci,dr,di
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex values (16 floats) - 2x unrolled
+        x0 = _mm256_load_ps((float*)a);       // Load ar0,ai0,br0,bi0,cr0,ci0,dr0,di0
+        x1 = _mm256_load_ps((float*)(a + 4)); // Load ar1,ai1,br1,bi1,cr1,ci1,dr1,di1
+        y0 = _mm256_load_ps((float*)b);       // Load er0,ei0,fr0,fi0,gr0,gi0,hr0,hi0
+        y1 = _mm256_load_ps((float*)(b + 4)); // Load er1,ei1,fr1,fi1,gr1,gi1,hr1,hi1
 
-        const __m256 yl = _mm256_moveldup_ps(y); // Load yl with cr,cr,dr,dr
-        const __m256 yh = _mm256_movehdup_ps(y); // Load yh with ci,ci,di,di
+        __VOLK_PREFETCH(a + 16);
+        __VOLK_PREFETCH(b + 16);
 
-        const __m256 tmp2x = _mm256_permute_ps(x, 0xB1); // Re-arrange x to be ai,ar,bi,br
+        yl0 = _mm256_moveldup_ps(y0); // er0,er0,fr0,fr0,gr0,gr0,hr0,hr0
+        yl1 = _mm256_moveldup_ps(y1); // er1,er1,fr1,fr1,gr1,gr1,hr1,hr1
+        yh0 = _mm256_movehdup_ps(y0); // ei0,ei0,fi0,fi0,gi0,gi0,hi0,hi0
+        yh1 = _mm256_movehdup_ps(y1); // ei1,ei1,fi1,fi1,gi1,gi1,hi1,hi1
 
-        const __m256 tmp2 = _mm256_mul_ps(tmp2x, yh); // tmp2 = ai*ci,ar*ci,bi*di,br*di
+        x0_swap = _mm256_permute_ps(x0, 0xB1); // ai0,ar0,bi0,br0,ci0,cr0,di0,dr0
+        x1_swap = _mm256_permute_ps(x1, 0xB1); // ai1,ar1,bi1,br1,ci1,cr1,di1,dr1
 
-        const __m256 z = _mm256_fmaddsub_ps(
-            x, yl, tmp2); // ar*cr-ai*ci, ai*cr+ar*ci, br*dr-bi*di, bi*dr+br*di
+        tmp0 = _mm256_mul_ps(x0_swap, yh0); // ai0*ei0,ar0*ei0,bi0*fi0,br0*fi0,...
+        tmp1 = _mm256_mul_ps(x1_swap, yh1); // ai1*ei1,ar1*ei1,bi1*fi1,br1*fi1,...
 
-        _mm256_store_ps((float*)c, z); // Store the results back into the C container
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        // fmaddsub: x*y + {-z, +z, -z, +z, ...}
+        // Result: ar*cr - ai*ci, ai*cr + ar*ci (exactly what we need!)
+        z0 = _mm256_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm256_fmaddsub_ps(x1, yl1, tmp1);
 
-        a += 4;
-        b += 4;
-        c += 4;
+        _mm256_store_ps((float*)c, z0);
+        _mm256_store_ps((float*)(c + 4), z1);
+
+        a += 8;
+        b += 8;
+        c += 8;
     }
 
-    number = quarterPoints * 4;
-    for (; number < num_points; number++) {
-        *c++ = (*a++) * (*b++);
-    }
+    number = eighthPoints * 8;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
 }
 #endif /* LV_HAVE_AVX2 && LV_HAVE_FMA */
+
+
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+/*!
+  \brief Multiplies the two input complex vectors and stores their results in the third
+  vector
+  \param cVector The vector where the results will be stored
+  \param aVector One of the vectors to be multiplied
+  \param bVector One of the vectors to be multiplied
+  \param num_points The number of complex values in aVector and bVector to be multiplied
+  together and stored into cVector
+*/
+static inline void volk_32fc_x2_multiply_32fc_a_avx512f(lv_32fc_t* cVector,
+                                                        const lv_32fc_t* aVector,
+                                                        const lv_32fc_t* bVector,
+                                                        unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    lv_32fc_t* c = cVector;
+    const lv_32fc_t* a = aVector;
+    const lv_32fc_t* b = bVector;
+
+    __m512 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m512 x0_swap, x1_swap;
+
+    for (; number < sixteenthPoints; number++) {
+        // Load 16 complex values (32 floats) - 2x unrolled
+        x0 = _mm512_load_ps((float*)a);       // Load 8 complex values
+        x1 = _mm512_load_ps((float*)(a + 8)); // Load 8 more complex values
+        y0 = _mm512_load_ps((float*)b);       // Load 8 complex values
+        y1 = _mm512_load_ps((float*)(b + 8)); // Load 8 more complex values
+
+        __VOLK_PREFETCH(a + 32);
+        __VOLK_PREFETCH(b + 32);
+
+        yl0 = _mm512_moveldup_ps(y0); // Duplicate real parts
+        yl1 = _mm512_moveldup_ps(y1);
+        yh0 = _mm512_movehdup_ps(y0); // Duplicate imaginary parts
+        yh1 = _mm512_movehdup_ps(y1);
+
+        x0_swap = _mm512_permute_ps(x0, 0xB1); // Swap real and imaginary
+        x1_swap = _mm512_permute_ps(x1, 0xB1);
+
+        tmp0 = _mm512_mul_ps(x0_swap, yh0);
+        tmp1 = _mm512_mul_ps(x1_swap, yh1);
+
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        z0 = _mm512_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm512_fmaddsub_ps(x1, yl1, tmp1);
+
+        _mm512_store_ps((float*)c, z0);
+        _mm512_store_ps((float*)(c + 8), z1);
+
+        a += 16;
+        b += 16;
+        c += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
+}
+#endif /* LV_HAVE_AVX512F */
+
+
+#if LV_HAVE_AVX512F && LV_HAVE_AVX512DQ
+#include <immintrin.h>
+/*!
+  \brief Multiplies the two input complex vectors and stores their results in the third
+  vector (AVX-512F+DQ variant)
+  \param cVector The vector where the results will be stored
+  \param aVector One of the vectors to be multiplied
+  \param bVector One of the vectors to be multiplied
+  \param num_points The number of complex values in aVector and bVector to be multiplied
+  together and stored into cVector
+*/
+static inline void volk_32fc_x2_multiply_32fc_a_avx512f_dq(lv_32fc_t* cVector,
+                                                           const lv_32fc_t* aVector,
+                                                           const lv_32fc_t* bVector,
+                                                           unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    lv_32fc_t* c = cVector;
+    const lv_32fc_t* a = aVector;
+    const lv_32fc_t* b = bVector;
+
+    __m512 x0, x1, y0, y1, yl0, yl1, yh0, yh1, tmp0, tmp1, z0, z1;
+    __m512 x0_swap, x1_swap;
+
+    for (; number < sixteenthPoints; number++) {
+        // Load 16 complex values (32 floats) - 2x unrolled
+        x0 = _mm512_load_ps((float*)a);       // Load 8 complex values
+        x1 = _mm512_load_ps((float*)(a + 8)); // Load 8 more complex values
+        y0 = _mm512_load_ps((float*)b);       // Load 8 complex values
+        y1 = _mm512_load_ps((float*)(b + 8)); // Load 8 more complex values
+
+        __VOLK_PREFETCH(a + 32);
+        __VOLK_PREFETCH(b + 32);
+
+        yl0 = _mm512_moveldup_ps(y0); // Duplicate real parts
+        yl1 = _mm512_moveldup_ps(y1);
+        yh0 = _mm512_movehdup_ps(y0); // Duplicate imaginary parts
+        yh1 = _mm512_movehdup_ps(y1);
+
+        x0_swap = _mm512_permute_ps(x0, 0xB1); // Swap real and imaginary
+        x1_swap = _mm512_permute_ps(x1, 0xB1);
+
+        tmp0 = _mm512_mul_ps(x0_swap, yh0);
+        tmp1 = _mm512_mul_ps(x1_swap, yh1);
+
+        // Regular multiply: (a+jb)*(c+jd) = (ac-bd) + j(ad+bc)
+        z0 = _mm512_fmaddsub_ps(x0, yl0, tmp0);
+        z1 = _mm512_fmaddsub_ps(x1, yl1, tmp1);
+
+        _mm512_store_ps((float*)c, z0);
+        _mm512_store_ps((float*)(c + 8), z1);
+
+        a += 16;
+        b += 16;
+        c += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    volk_32fc_x2_multiply_32fc_generic(c, a, b, num_points - number);
+}
+#endif /* LV_HAVE_AVX512F && LV_HAVE_AVX512DQ */
 
 
 #ifdef LV_HAVE_AVX
@@ -280,25 +569,35 @@ static inline void volk_32fc_x2_multiply_32fc_a_avx(lv_32fc_t* cVector,
                                                     unsigned int num_points)
 {
     unsigned int number = 0;
-    const unsigned int quarterPoints = num_points / 4;
+    const unsigned int eighthPoints = num_points / 8;
 
-    __m256 x, y, z;
+    __m256 x0, y0, z0, x1, y1, z1;
     lv_32fc_t* c = cVector;
     const lv_32fc_t* a = aVector;
     const lv_32fc_t* b = bVector;
 
-    for (; number < quarterPoints; number++) {
-        x = _mm256_load_ps((float*)a); // Load the ar + ai, br + bi ... as ar,ai,br,bi ...
-        y = _mm256_load_ps((float*)b); // Load the cr + ci, dr + di ... as cr,ci,dr,di ...
-        z = _mm256_complexmul_ps(x, y);
-        _mm256_store_ps((float*)c, z); // Store the results back into the C container
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex values (16 floats) - 2x unrolled
+        x0 = _mm256_load_ps((float*)a);       // ar0,ai0,br0,bi0,cr0,ci0,dr0,di0
+        y0 = _mm256_load_ps((float*)b);       // er0,ei0,fr0,fi0,gr0,gi0,hr0,hi0
+        x1 = _mm256_load_ps((float*)(a + 4)); // ar1,ai1,br1,bi1,cr1,ci1,dr1,di1
+        y1 = _mm256_load_ps((float*)(b + 4)); // er1,ei1,fr1,fi1,gr1,gi1,hr1,hi1
 
-        a += 4;
-        b += 4;
-        c += 4;
+        __VOLK_PREFETCH(a + 16);
+        __VOLK_PREFETCH(b + 16);
+
+        z0 = _mm256_complexmul_ps(x0, y0);
+        z1 = _mm256_complexmul_ps(x1, y1);
+
+        _mm256_store_ps((float*)c, z0);
+        _mm256_store_ps((float*)(c + 4), z1);
+
+        a += 8;
+        b += 8;
+        c += 8;
     }
 
-    number = quarterPoints * 4;
+    number = eighthPoints * 8;
 
     for (; number < num_points; number++) {
         *c++ = (*a++) * (*b++);
