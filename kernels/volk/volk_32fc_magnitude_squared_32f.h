@@ -111,6 +111,50 @@ static inline void volk_32fc_magnitude_squared_32f_u_avx(float* magnitudeVector,
 #endif /* LV_HAVE_AVX */
 
 
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+#include <volk/volk_avx512_intrinsics.h>
+
+static inline void volk_32fc_magnitude_squared_32f_u_avx512(float* magnitudeVector,
+                                                             const lv_32fc_t* complexVector,
+                                                             unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    const float* complexVectorPtr = (float*)complexVector;
+    float* magnitudeVectorPtr = magnitudeVector;
+
+    __m512 cplxValue1, cplxValue2, iValue, qValue, result;
+    for (; number < sixteenthPoints; number++) {
+        cplxValue1 = _mm512_loadu_ps(complexVectorPtr);
+        complexVectorPtr += 16;
+
+        cplxValue2 = _mm512_loadu_ps(complexVectorPtr);
+        complexVectorPtr += 16;
+
+        // Deinterleave into real and imaginary parts using helper functions
+        iValue = _mm512_real(cplxValue1, cplxValue2);
+        qValue = _mm512_imag(cplxValue1, cplxValue2);
+
+        // Compute magnitude squared using FMA: i^2 + q^2
+        result = _mm512_mul_ps(iValue, iValue);
+        result = _mm512_fmadd_ps(qValue, qValue, result);
+
+        _mm512_storeu_ps(magnitudeVectorPtr, result);
+        magnitudeVectorPtr += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    for (; number < num_points; number++) {
+        const float real = *complexVectorPtr++;
+        const float imag = *complexVectorPtr++;
+        *magnitudeVectorPtr++ = (real * real) + (imag * imag);
+    }
+}
+#endif /* LV_HAVE_AVX512F */
+
+
 #ifdef LV_HAVE_SSE3
 #include <pmmintrin.h>
 #include <volk/volk_sse3_intrinsics.h>
@@ -247,6 +291,50 @@ static inline void volk_32fc_magnitude_squared_32f_a_avx(float* magnitudeVector,
     }
 }
 #endif /* LV_HAVE_AVX */
+
+
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+#include <volk/volk_avx512_intrinsics.h>
+
+static inline void volk_32fc_magnitude_squared_32f_a_avx512(float* magnitudeVector,
+                                                             const lv_32fc_t* complexVector,
+                                                             unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
+
+    const float* complexVectorPtr = (float*)complexVector;
+    float* magnitudeVectorPtr = magnitudeVector;
+
+    __m512 cplxValue1, cplxValue2, iValue, qValue, result;
+    for (; number < sixteenthPoints; number++) {
+        cplxValue1 = _mm512_load_ps(complexVectorPtr);
+        complexVectorPtr += 16;
+
+        cplxValue2 = _mm512_load_ps(complexVectorPtr);
+        complexVectorPtr += 16;
+
+        // Deinterleave into real and imaginary parts using helper functions
+        iValue = _mm512_real(cplxValue1, cplxValue2);
+        qValue = _mm512_imag(cplxValue1, cplxValue2);
+
+        // Compute magnitude squared using FMA: i^2 + q^2
+        result = _mm512_mul_ps(iValue, iValue);
+        result = _mm512_fmadd_ps(qValue, qValue, result);
+
+        _mm512_store_ps(magnitudeVectorPtr, result);
+        magnitudeVectorPtr += 16;
+    }
+
+    number = sixteenthPoints * 16;
+    for (; number < num_points; number++) {
+        const float real = *complexVectorPtr++;
+        const float imag = *complexVectorPtr++;
+        *magnitudeVectorPtr++ = (real * real) + (imag * imag);
+    }
+}
+#endif /* LV_HAVE_AVX512F */
 
 
 #ifdef LV_HAVE_SSE3
