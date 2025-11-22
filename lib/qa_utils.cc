@@ -40,19 +40,68 @@ void random_floats(void* buf, unsigned int n, std::default_random_engine& rnd_en
     }
 }
 
-void load_random_data(void* data, volk_type_t type, unsigned int n)
+void load_random_data(void* data,
+                      volk_type_t type,
+                      unsigned int n,
+                      const std::vector<float>& float_edge_cases,
+                      const std::vector<lv_32fc_t>& complex_edge_cases)
 {
     std::random_device rnd_device;
     std::default_random_engine rnd_engine(rnd_device());
+
+    unsigned int edge_case_count = 0;
+
+    // Inject complex edge cases for complex float types
+    if (type.is_float && type.is_complex && !complex_edge_cases.empty()) {
+        edge_case_count = std::min((unsigned int)complex_edge_cases.size(), n);
+        if (type.size == 8) {
+            lv_64fc_t* array = static_cast<lv_64fc_t*>(data);
+            for (unsigned int i = 0; i < edge_case_count; i++) {
+                array[i] = lv_cmake((double)lv_creal(complex_edge_cases[i]),
+                                    (double)lv_cimag(complex_edge_cases[i]));
+            }
+        } else {
+            lv_32fc_t* array = static_cast<lv_32fc_t*>(data);
+            for (unsigned int i = 0; i < edge_case_count; i++) {
+                array[i] = complex_edge_cases[i];
+            }
+        }
+    }
+    // Inject float edge cases for non-complex float types
+    else if (type.is_float && !type.is_complex && !float_edge_cases.empty()) {
+        edge_case_count = std::min((unsigned int)float_edge_cases.size(), n);
+        if (type.size == 8) {
+            double* array = static_cast<double*>(data);
+            for (unsigned int i = 0; i < edge_case_count; i++) {
+                array[i] = static_cast<double>(float_edge_cases[i]);
+            }
+        } else {
+            float* array = static_cast<float*>(data);
+            for (unsigned int i = 0; i < edge_case_count; i++) {
+                array[i] = float_edge_cases[i];
+            }
+        }
+    }
+
+    unsigned int remaining_n = n - edge_case_count;
     if (type.is_complex)
-        n *= 2;
+        remaining_n *= 2;
+
     if (type.is_float) {
         if (type.size == 8) {
-            random_floats<double>(data, n, rnd_engine);
+            double* array = static_cast<double*>(data);
+            random_floats<double>(array + edge_case_count * (type.is_complex ? 2 : 1),
+                                  remaining_n,
+                                  rnd_engine);
         } else {
-            random_floats<float>(data, n, rnd_engine);
+            float* array = static_cast<float*>(data);
+            random_floats<float>(array + edge_case_count * (type.is_complex ? 2 : 1),
+                                 remaining_n,
+                                 rnd_engine);
         }
     } else {
+        if (type.is_complex)
+            n *= 2;
         switch (type.size) {
         case 8:
             if (type.is_signed) {
@@ -113,9 +162,7 @@ void load_random_data(void* data, volk_type_t type, unsigned int n)
             }
             break;
         default:
-            throw "load_random_data: no support for data size > 8 or < 1"; // no
-                                                                           // shenanigans
-                                                                           // here
+            throw "load_random_data: no support for data size > 8 or < 1";
         }
     }
 }
@@ -545,7 +592,9 @@ bool run_volk_tests(volk_func_desc_t desc,
                           results,
                           puppet_master_name,
                           test_params.absolute_mode(),
-                          test_params.benchmark_mode());
+                          test_params.benchmark_mode(),
+                          std::vector<float>(),
+                          std::vector<lv_32fc_t>());
 }
 
 bool run_volk_tests(volk_func_desc_t desc,
@@ -558,7 +607,9 @@ bool run_volk_tests(volk_func_desc_t desc,
                     std::vector<volk_test_results_t>* results,
                     std::string puppet_master_name,
                     bool absolute_mode,
-                    bool benchmark_mode)
+                    bool benchmark_mode,
+                    const std::vector<float>& float_edge_cases,
+                    const std::vector<lv_32fc_t>& complex_edge_cases)
 {
     // Initialize this entry in results vector
     results->push_back(volk_test_results_t());
@@ -638,7 +689,8 @@ bool run_volk_tests(volk_func_desc_t desc,
                 mem_pool.get_new(vlen * sig.size * (sig.is_complex ? 2 : 1)));
     }
     for (size_t i = 0; i < inbuffs.size(); i++) {
-        load_random_data(inbuffs[i], inputsig[i], vlen);
+        load_random_data(
+            inbuffs[i], inputsig[i], vlen, float_edge_cases, complex_edge_cases);
     }
 
     // ok let's make a vector of vector of void buffers, which holds the input/output
