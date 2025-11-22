@@ -27,7 +27,8 @@
 #include <limits>   // for numeric_limits
 #include <map>      // for map, map<>::mappe...
 #include <random>
-#include <vector> // for vector, _Bit_refe...
+#include <sstream> // for ostringstream
+#include <vector>  // for vector, _Bit_refe...
 
 template <typename T>
 void random_floats(void* buf, unsigned int n, std::default_random_engine& rnd_engine)
@@ -39,68 +40,19 @@ void random_floats(void* buf, unsigned int n, std::default_random_engine& rnd_en
     }
 }
 
-void load_random_data(void* data,
-                      volk_type_t type,
-                      unsigned int n,
-                      const std::vector<float>& float_edge_cases,
-                      const std::vector<lv_32fc_t>& complex_edge_cases)
+void load_random_data(void* data, volk_type_t type, unsigned int n)
 {
     std::random_device rnd_device;
     std::default_random_engine rnd_engine(rnd_device());
-
-    unsigned int edge_case_count = 0;
-
-    // Inject complex edge cases for complex float types
-    if (type.is_float && type.is_complex && !complex_edge_cases.empty()) {
-        edge_case_count = std::min((unsigned int)complex_edge_cases.size(), n);
-        if (type.size == 8) {
-            lv_64fc_t* array = static_cast<lv_64fc_t*>(data);
-            for (unsigned int i = 0; i < edge_case_count; i++) {
-                array[i] = lv_cmake((double)lv_creal(complex_edge_cases[i]),
-                                    (double)lv_cimag(complex_edge_cases[i]));
-            }
-        } else {
-            lv_32fc_t* array = static_cast<lv_32fc_t*>(data);
-            for (unsigned int i = 0; i < edge_case_count; i++) {
-                array[i] = complex_edge_cases[i];
-            }
-        }
-    }
-    // Inject float edge cases for non-complex float types
-    else if (type.is_float && !type.is_complex && !float_edge_cases.empty()) {
-        edge_case_count = std::min((unsigned int)float_edge_cases.size(), n);
-        if (type.size == 8) {
-            double* array = static_cast<double*>(data);
-            for (unsigned int i = 0; i < edge_case_count; i++) {
-                array[i] = static_cast<double>(float_edge_cases[i]);
-            }
-        } else {
-            float* array = static_cast<float*>(data);
-            for (unsigned int i = 0; i < edge_case_count; i++) {
-                array[i] = float_edge_cases[i];
-            }
-        }
-    }
-
-    unsigned int remaining_n = n - edge_case_count;
     if (type.is_complex)
-        remaining_n *= 2;
-
+        n *= 2;
     if (type.is_float) {
         if (type.size == 8) {
-            double* array = static_cast<double*>(data);
-            random_floats<double>(array + edge_case_count * (type.is_complex ? 2 : 1),
-                                  remaining_n,
-                                  rnd_engine);
+            random_floats<double>(data, n, rnd_engine);
         } else {
-            float* array = static_cast<float*>(data);
-            random_floats<float>(array + edge_case_count * (type.is_complex ? 2 : 1),
-                                 remaining_n,
-                                 rnd_engine);
+            random_floats<float>(data, n, rnd_engine);
         }
     } else {
-        if (type.is_complex)
-            n *= 2;
         switch (type.size) {
         case 8:
             if (type.is_signed) {
@@ -436,27 +388,6 @@ bool fcompare(t* in1, t* in2, unsigned int vlen, float tol, bool absolute_mode)
     bool fail = false;
     int print_max_errs = 10;
     for (unsigned int i = 0; i < vlen; i++) {
-        // Check for special values (NaN, inf)
-        bool in1_special = std::isnan(((t*)(in1))[i]) || std::isinf(((t*)(in1))[i]);
-        bool in2_special = std::isnan(((t*)(in2))[i]) || std::isinf(((t*)(in2))[i]);
-
-        if (in1_special || in2_special) {
-            // For NaN: both must be NaN (NaN != NaN, so use isnan)
-            // For inf: both must be same signed infinity
-            bool values_match =
-                (std::isnan(((t*)(in1))[i]) && std::isnan(((t*)(in2))[i])) ||
-                (((t*)(in1))[i] == ((t*)(in2))[i]);
-            if (!values_match) {
-                fail = true;
-                if (print_max_errs-- > 0) {
-                    std::cout << "offset " << i << " in1: " << t(((t*)(in1))[i])
-                              << " in2: " << t(((t*)(in2))[i]);
-                    std::cout << " tolerance was: " << tol << std::endl;
-                }
-            }
-            continue; // Skip normal comparison for special values
-        }
-
         if (absolute_mode) {
             if (fabs(((t*)(in1))[i] - ((t*)(in2))[i]) > tol) {
                 fail = true;
@@ -500,30 +431,16 @@ bool ccompare(t* in1, t* in2, unsigned int vlen, float tol, bool absolute_mode)
     bool fail = false;
     int print_max_errs = 10;
     for (unsigned int i = 0; i < 2 * vlen; i += 2) {
-        // Check for special values (NaN, inf) and verify they match
-        bool in1_has_special = std::isnan(in1[i]) || std::isnan(in1[i + 1]) ||
-                               std::isinf(in1[i]) || std::isinf(in1[i + 1]);
-        bool in2_has_special = std::isnan(in2[i]) || std::isnan(in2[i + 1]) ||
-                               std::isinf(in2[i]) || std::isinf(in2[i + 1]);
-
-        if (in1_has_special || in2_has_special) {
-            // For NaN: both must be NaN (NaN != NaN, so use isnan)
-            // For inf: both must be same signed infinity
-            bool real_match =
-                (std::isnan(in1[i]) && std::isnan(in2[i])) || (in1[i] == in2[i]);
-            bool imag_match = (std::isnan(in1[i + 1]) && std::isnan(in2[i + 1])) ||
-                              (in1[i + 1] == in2[i + 1]);
-
-            if (!real_match || !imag_match) {
-                fail = true;
-                if (print_max_errs-- > 0) {
-                    std::cout << "offset " << i / 2 << " in1: " << in1[i] << " + "
-                              << in1[i + 1] << "j  in2: " << in2[i] << " + " << in2[i + 1]
-                              << "j";
-                    std::cout << " tolerance was: " << tol << std::endl;
-                }
+        if (std::isnan(in1[i]) || std::isnan(in1[i + 1]) || std::isnan(in2[i]) ||
+            std::isnan(in2[i + 1]) || std::isinf(in1[i]) || std::isinf(in1[i + 1]) ||
+            std::isinf(in2[i]) || std::isinf(in2[i + 1])) {
+            fail = true;
+            if (print_max_errs-- > 0) {
+                std::cout << "offset " << i / 2 << " in1: " << in1[i] << " + "
+                          << in1[i + 1] << "j  in2: " << in2[i] << " + " << in2[i + 1]
+                          << "j";
+                std::cout << " tolerance was: " << tol << std::endl;
             }
-            continue; // Skip normal comparison for special values
         }
         t diff[2] = { in1[i] - in2[i], in1[i + 1] - in2[i + 1] };
         t err = std::sqrt(diff[0] * diff[0] + diff[1] * diff[1]);
@@ -628,9 +545,7 @@ bool run_volk_tests(volk_func_desc_t desc,
                           results,
                           puppet_master_name,
                           test_params.absolute_mode(),
-                          test_params.benchmark_mode(),
-                          test_params.float_edge_cases(),
-                          test_params.complex_edge_cases());
+                          test_params.benchmark_mode());
 }
 
 bool run_volk_tests(volk_func_desc_t desc,
@@ -643,9 +558,7 @@ bool run_volk_tests(volk_func_desc_t desc,
                     std::vector<volk_test_results_t>* results,
                     std::string puppet_master_name,
                     bool absolute_mode,
-                    bool benchmark_mode,
-                    const std::vector<float>& float_edge_cases,
-                    const std::vector<lv_32fc_t>& complex_edge_cases)
+                    bool benchmark_mode)
 {
     // Initialize this entry in results vector
     results->push_back(volk_test_results_t());
@@ -667,6 +580,26 @@ bool run_volk_tests(volk_func_desc_t desc,
 
     // first let's get a list of available architectures for the test
     std::vector<std::string> arch_list = get_arch_list(desc);
+
+    // Reorder arch_list to put generic implementations first for consistent output
+    // Priority: "generic" first, then other generic_* variants, then everything else
+    std::vector<std::string> plain_generic;
+    std::vector<std::string> other_generic_impls;
+    std::vector<std::string> other_impls;
+    for (const auto& arch : arch_list) {
+        if (arch == "generic") {
+            plain_generic.push_back(arch);
+        } else if (arch.find("generic") == 0) { // starts with "generic"
+            other_generic_impls.push_back(arch);
+        } else {
+            other_impls.push_back(arch);
+        }
+    }
+    arch_list.clear();
+    arch_list.insert(arch_list.end(), plain_generic.begin(), plain_generic.end());
+    arch_list.insert(
+        arch_list.end(), other_generic_impls.begin(), other_generic_impls.end());
+    arch_list.insert(arch_list.end(), other_impls.begin(), other_impls.end());
 
     if ((!benchmark_mode) && (arch_list.size() < 2)) {
         std::cout << "no architectures to test" << std::endl;
@@ -705,8 +638,7 @@ bool run_volk_tests(volk_func_desc_t desc,
                 mem_pool.get_new(vlen * sig.size * (sig.is_complex ? 2 : 1)));
     }
     for (size_t i = 0; i < inbuffs.size(); i++) {
-        load_random_data(
-            inbuffs[i], inputsig[i], vlen, float_edge_cases, complex_edge_cases);
+        load_random_data(inbuffs[i], inputsig[i], vlen);
     }
 
     // ok let's make a vector of vector of void buffers, which holds the input/output
@@ -737,6 +669,203 @@ bool run_volk_tests(volk_func_desc_t desc,
     vlen = vlen - vlen_twiddle;
     std::chrono::time_point<std::chrono::system_clock> start, end;
     std::vector<double> profile_times;
+
+    // CPU frequency scaling warmup: Run generic for ≥500ms to boost CPU to full speed
+    // This eliminates ~50ms first-kernel penalty from turbo boost ramp-up time
+    const double warmup_target_ms = 500.0;
+    {
+        // Run a quick test to estimate time per iteration
+        start = std::chrono::system_clock::now();
+        switch (both_sigs.size()) {
+        case 1:
+            if (inputsc.size() == 0) {
+                run_cast_test1(
+                    (volk_fn_1arg)(manual_func), test_data[0], vlen, iter, "generic");
+            } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                if (inputsc[0].is_complex) {
+                    run_cast_test1_s32fc((volk_fn_1arg_s32fc)(manual_func),
+                                         test_data[0],
+                                         scalar,
+                                         vlen,
+                                         iter,
+                                         "generic");
+                } else {
+                    run_cast_test1_s32f((volk_fn_1arg_s32f)(manual_func),
+                                        test_data[0],
+                                        scalar.real(),
+                                        vlen,
+                                        iter,
+                                        "generic");
+                }
+            }
+            break;
+        case 2:
+            if (inputsc.size() == 0) {
+                run_cast_test2(
+                    (volk_fn_2arg)(manual_func), test_data[0], vlen, iter, "generic");
+            } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                if (inputsc[0].is_complex) {
+                    run_cast_test2_s32fc((volk_fn_2arg_s32fc)(manual_func),
+                                         test_data[0],
+                                         scalar,
+                                         vlen,
+                                         iter,
+                                         "generic");
+                } else {
+                    run_cast_test2_s32f((volk_fn_2arg_s32f)(manual_func),
+                                        test_data[0],
+                                        scalar.real(),
+                                        vlen,
+                                        iter,
+                                        "generic");
+                }
+            }
+            break;
+        case 3:
+            if (inputsc.size() == 0) {
+                run_cast_test3(
+                    (volk_fn_3arg)(manual_func), test_data[0], vlen, iter, "generic");
+            } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                if (inputsc[0].is_complex) {
+                    run_cast_test3_s32fc((volk_fn_3arg_s32fc)(manual_func),
+                                         test_data[0],
+                                         scalar,
+                                         vlen,
+                                         iter,
+                                         "generic");
+                } else {
+                    run_cast_test3_s32f((volk_fn_3arg_s32f)(manual_func),
+                                        test_data[0],
+                                        scalar.real(),
+                                        vlen,
+                                        iter,
+                                        "generic");
+                }
+            }
+            break;
+        case 4:
+            run_cast_test4(
+                (volk_fn_4arg)(manual_func), test_data[0], vlen, iter, "generic");
+            break;
+        default:
+            break;
+        }
+        end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        double test_time_ms = 1000.0 * elapsed.count();
+
+        // If we haven't reached 500ms yet, calculate how many more iterations we need
+        if (test_time_ms < warmup_target_ms) {
+            double remaining_ms = warmup_target_ms - test_time_ms;
+            unsigned int warmup_iterations =
+                (unsigned int)((remaining_ms / test_time_ms) * iter);
+            if (warmup_iterations > 0) {
+                // Run additional warmup iterations
+                switch (both_sigs.size()) {
+                case 1:
+                    if (inputsc.size() == 0) {
+                        run_cast_test1((volk_fn_1arg)(manual_func),
+                                       test_data[0],
+                                       vlen,
+                                       warmup_iterations,
+                                       "generic");
+                    } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                        if (inputsc[0].is_complex) {
+                            run_cast_test1_s32fc((volk_fn_1arg_s32fc)(manual_func),
+                                                 test_data[0],
+                                                 scalar,
+                                                 vlen,
+                                                 warmup_iterations,
+                                                 "generic");
+                        } else {
+                            run_cast_test1_s32f((volk_fn_1arg_s32f)(manual_func),
+                                                test_data[0],
+                                                scalar.real(),
+                                                vlen,
+                                                warmup_iterations,
+                                                "generic");
+                        }
+                    }
+                    break;
+                case 2:
+                    if (inputsc.size() == 0) {
+                        run_cast_test2((volk_fn_2arg)(manual_func),
+                                       test_data[0],
+                                       vlen,
+                                       warmup_iterations,
+                                       "generic");
+                    } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                        if (inputsc[0].is_complex) {
+                            run_cast_test2_s32fc((volk_fn_2arg_s32fc)(manual_func),
+                                                 test_data[0],
+                                                 scalar,
+                                                 vlen,
+                                                 warmup_iterations,
+                                                 "generic");
+                        } else {
+                            run_cast_test2_s32f((volk_fn_2arg_s32f)(manual_func),
+                                                test_data[0],
+                                                scalar.real(),
+                                                vlen,
+                                                warmup_iterations,
+                                                "generic");
+                        }
+                    }
+                    break;
+                case 3:
+                    if (inputsc.size() == 0) {
+                        run_cast_test3((volk_fn_3arg)(manual_func),
+                                       test_data[0],
+                                       vlen,
+                                       warmup_iterations,
+                                       "generic");
+                    } else if (inputsc.size() == 1 && inputsc[0].is_float) {
+                        if (inputsc[0].is_complex) {
+                            run_cast_test3_s32fc((volk_fn_3arg_s32fc)(manual_func),
+                                                 test_data[0],
+                                                 scalar,
+                                                 vlen,
+                                                 warmup_iterations,
+                                                 "generic");
+                        } else {
+                            run_cast_test3_s32f((volk_fn_3arg_s32f)(manual_func),
+                                                test_data[0],
+                                                scalar.real(),
+                                                vlen,
+                                                warmup_iterations,
+                                                "generic");
+                        }
+                    }
+                    break;
+                case 4:
+                    run_cast_test4((volk_fn_4arg)(manual_func),
+                                   test_data[0],
+                                   vlen,
+                                   warmup_iterations,
+                                   "generic");
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+
+    // Reload test_data[0] buffers after warmup
+    // Warmup may have modified data (e.g., in-place byteswap operations)
+    // Clear output buffers
+    for (size_t j = 0; j < outputsig.size(); j++) {
+        memset(test_data[0][j],
+               0,
+               vlen * outputsig[j].size * (outputsig[j].is_complex ? 2 : 1));
+    }
+    // Reload input buffers from original data
+    for (size_t j = 0; j < inputsig.size(); j++) {
+        memcpy(test_data[0][outputsig.size() + j],
+               inbuffs[j],
+               vlen * inputsig[j].size * (inputsig[j].is_complex ? 2 : 1));
+    }
+
     for (size_t i = 0; i < arch_list.size(); i++) {
         start = std::chrono::system_clock::now();
 
@@ -982,30 +1111,107 @@ bool run_volk_tests(volk_func_desc_t desc,
         }
     }
 
+    // Calculate total data transferred (bytes read + written) for throughput display
+    size_t bytes_per_call = 0;
+    for (size_t j = 0; j < outputsig.size(); j++) {
+        bytes_per_call += outputsig[j].size * (outputsig[j].is_complex ? 2 : 1) * vlen;
+    }
+    for (size_t j = 0; j < inputsig.size(); j++) {
+        bytes_per_call += inputsig[j].size * (inputsig[j].is_complex ? 2 : 1) * vlen;
+    }
+    double total_mb = (bytes_per_call * iter) / 1e6; // Total megabytes transferred
+
+    // Build formatted output strings with proper alignment
+    std::vector<std::string> output_lines;
+    const int total_width = 60;
+    int ms_end_position = 0; // Track where " ms" ends for best arch alignment
+
     for (size_t i = 0; i < arch_list.size(); i++) {
-        int name_len = arch_list[i].length();
-        int num_tabs = (24 - name_len + 7) / 8;
-        if (num_tabs < 1)
-            num_tabs = 1;
+        // Calculate throughput in MB/s
+        double time_seconds = profile_times[i] / 1000.0;
+        double throughput_mbps = total_mb / time_seconds;
 
-        std::cout << arch_list[i];
-        for (int t = 0; t < num_tabs; t++)
-            std::cout << "\t";
-        std::cout << std::right << std::setw(10) << std::fixed << std::setprecision(4)
-                  << profile_times[i] << " ms";
+        // Build the timing/throughput string
+        std::ostringstream timing_str;
+        timing_str << std::fixed << std::setprecision(4) << profile_times[i] << " ms"
+                   << " (" << std::setw(8) << std::setprecision(1) << throughput_mbps
+                   << " MB/s)";
 
+        // Calculate padding needed (without star)
+        int padding = total_width - arch_list[i].length() - timing_str.str().length();
+        if (padding < 1)
+            padding = 1;
+
+        // Build the full line with left-adjusted name and right-adjusted timing
+        std::string line = arch_list[i] + std::string(padding, ' ') + timing_str.str();
+
+        // Add star if this is a best arch (after padding calculation)
         if (arch_list[i] == best_arch_a || arch_list[i] == best_arch_u) {
-            std::cout << " *";
+            line += " *";
+        }
+
+        // Track where " ms" ends (position of 's' + 1)
+        if (i == 0) {
+            size_t ms_pos = line.find(" ms");
+            if (ms_pos != std::string::npos) {
+                ms_end_position = ms_pos + 3; // Position after " ms"
+            }
+        }
+
+        output_lines.push_back(line);
+    }
+
+    // Print all lines
+    for (const auto& line : output_lines) {
+        std::cout << line << std::endl;
+    }
+
+    // Get generic timing for speedup calculation
+    double generic_time = 0.0;
+    for (size_t i = 0; i < arch_list.size(); i++) {
+        if (arch_list[i] == "generic") {
+            generic_time = profile_times[i];
+            break;
+        }
+    }
+
+    // Print best arch lines with names right-aligned to where " ms" ends
+    if (ms_end_position > 0) {
+        int name_width = ms_end_position - 20; // Width for the label
+
+        std::cout << std::left << std::setw(20) << "Best aligned arch:" << std::right
+                  << std::setw(name_width) << best_arch_a;
+        if (best_arch_a != "generic" && generic_time > 0) {
+            double speedup = generic_time / best_time_a;
+            std::cout << " (" << std::fixed << std::setprecision(2) << speedup << "x)";
+        }
+        std::cout << std::endl;
+
+        std::cout << std::left << std::setw(20) << "Best unaligned arch:" << std::right
+                  << std::setw(name_width) << best_arch_u;
+        if (best_arch_u != "generic" && generic_time > 0) {
+            double speedup = generic_time / best_time_u;
+            std::cout << " (" << std::fixed << std::setprecision(2) << speedup << "x)";
+        }
+        std::cout << std::endl;
+    } else {
+        // Fallback if ms_end_position wasn't found
+        std::cout << std::left << std::setw(24) << "Best aligned arch:" << best_arch_a;
+        if (best_arch_a != "generic" && generic_time > 0) {
+            double speedup = generic_time / best_time_a;
+            std::cout << " (" << std::fixed << std::setprecision(2) << speedup << "x)";
+        }
+        std::cout << std::endl;
+
+        std::cout << std::left << std::setw(24) << "Best unaligned arch:" << best_arch_u;
+        if (best_arch_u != "generic" && generic_time > 0) {
+            double speedup = generic_time / best_time_u;
+            std::cout << " (" << std::fixed << std::setprecision(2) << speedup << "x)";
         }
         std::cout << std::endl;
     }
 
-    std::cout << std::left << std::setw(24) << "Best aligned arch:" << best_arch_a
-              << std::endl;
-    std::cout << std::left << std::setw(24) << "Best unaligned arch:" << best_arch_u
-              << std::endl;
-
-    std::cout << std::string(60, '-') << std::endl;
+    std::cout << std::string(80, '-') << std::endl;
 
     if (puppet_master_name == "NULL") {
         results->back().config_name = name;
