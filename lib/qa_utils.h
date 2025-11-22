@@ -206,4 +206,18 @@ typedef void (*volk_fn_2arg_s32fc)(void*, void*, lv_32fc_t*, unsigned int, const
 typedef void (*volk_fn_3arg_s32fc)(
     void*, void*, void*, lv_32fc_t*, unsigned int, const char*);
 
+// Direct implementation function pointers (no string lookup parameter)
+// These are used to call kernel implementations directly without per-iteration
+// string lookup overhead, significantly improving profiling performance.
+typedef void (*volk_fn_1arg_direct)(void*, unsigned int);
+typedef void (*volk_fn_2arg_direct)(void*, void*, unsigned int);
+typedef void (*volk_fn_3arg_direct)(void*, void*, void*, unsigned int);
+typedef void (*volk_fn_4arg_direct)(void*, void*, void*, void*, unsigned int);
+typedef void (*volk_fn_1arg_s32f_direct)(void*, float, unsigned int);
+typedef void (*volk_fn_2arg_s32f_direct)(void*, void*, float, unsigned int);
+typedef void (*volk_fn_3arg_s32f_direct)(void*, void*, void*, float, unsigned int);
+typedef void (*volk_fn_1arg_s32fc_direct)(void*, lv_32fc_t*, unsigned int);
+typedef void (*volk_fn_2arg_s32fc_direct)(void*, void*, lv_32fc_t*, unsigned int);
+typedef void (*volk_fn_3arg_s32fc_direct)(void*, void*, void*, lv_32fc_t*, unsigned int);
+
 #endif // VOLK_QA_UTILS_H
