@@ -2,9 +2,22 @@
 /*
  * Copyright 2014 Free Software Foundation, Inc.
  *
- * This file is part of VOLK
+ * This file is part of GNU Radio
  *
- * SPDX-License-Identifier: LGPL-3.0-or-later
+ * GNU Radio is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3, or (at your option)
+ * any later version.
+ *
+ * GNU Radio is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with GNU Radio; see the file COPYING.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street,
+ * Boston, MA 02110-1301, USA.
  */
 
 /*!
@@ -62,9 +75,25 @@
 
 #ifndef INCLUDED_volk_32f_sin_32f_a_H
 #define INCLUDED_volk_32f_sin_32f_a_H
+
+#ifdef LV_HAVE_GENERIC
+
+static inline void
+volk_32f_sin_32f_generic(float* bVector, const float* aVector, unsigned int num_points)
+{
+    float* bPtr = bVector;
+    const float* aPtr = aVector;
+    unsigned int number = 0;
+
+    for (number = 0; number < num_points; number++) {
+        *bPtr++ = sinf(*aPtr++);
+    }
+}
+
+#endif /* LV_HAVE_GENERIC */
+
 #ifdef LV_HAVE_AVX512F
 
-#include <immintrin.h>
 static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
                                               const float* inVector,
                                               unsigned int num_points)
@@ -74,7 +103,6 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
 
     unsigned int number = 0;
     unsigned int sixteenPoints = num_points / 16;
-    unsigned int i = 0;
 
     __m512 aVal, s, r, m4pi, pio4A, pio4B, pio4C, cp1, cp2, cp3, cp4, cp5, ffours, ftwos,
         fones;
@@ -88,6 +116,8 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
     ffours = _mm512_set1_ps(4.0);
     ftwos = _mm512_set1_ps(2.0);
     fones = _mm512_set1_ps(1.0);
+    const __m512 eighth = _mm512_set1_ps(0.125f);
+    const __m512 half = _mm512_set1_ps(0.5f);
     zeros = _mm512_setzero_epi32();
     ones = _mm512_set1_epi32(1);
     twos = _mm512_set1_epi32(2);
@@ -102,6 +132,8 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
 
     for (; number < sixteenPoints; number++) {
         aVal = _mm512_load_ps(inPtr);
+        __VOLK_PREFETCH(inPtr + 32);
+
         // s = fabs(aVal)
         s = (__m512)(_mm512_and_si512((__m512i)(aVal), _mm512_set1_epi32(0x7fffffff)));
 
@@ -114,10 +146,9 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
         s = _mm512_fnmadd_ps(r, pio4B, s);
         s = _mm512_fnmadd_ps(r, pio4C, s);
 
-        s = _mm512_div_ps(
-            s,
-            _mm512_set1_ps(8.0f)); // The constant is 2^N, for 3 times argument reduction
+        s = _mm512_mul_ps(s, eighth);
         s = _mm512_mul_ps(s, s);
+
         // Evaluate Taylor series
         s = _mm512_mul_ps(
             _mm512_fmadd_ps(
@@ -127,10 +158,11 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
                 cp1),
             s);
 
-        for (i = 0; i < 3; i++) {
-            s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
-        }
-        s = _mm512_div_ps(s, ftwos);
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+
+        s = _mm512_mul_ps(s, half);
 
         sine = _mm512_sqrt_ps(_mm512_mul_ps(_mm512_sub_ps(ftwos, s), s));
         cosine = _mm512_sub_ps(fones, s);
@@ -154,6 +186,7 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
     }
 }
 #endif
+
 #if LV_HAVE_AVX2 && LV_HAVE_FMA
 #include <immintrin.h>
 
@@ -457,8 +490,6 @@ volk_32f_sin_32f_a_sse4_1(float* bVector, const float* aVector, unsigned int num
 #define INCLUDED_volk_32f_sin_32f_u_H
 
 #ifdef LV_HAVE_AVX512F
-
-#include <immintrin.h>
 static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
                                               const float* inVector,
                                               unsigned int num_points)
@@ -468,7 +499,6 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
 
     unsigned int number = 0;
     unsigned int sixteenPoints = num_points / 16;
-    unsigned int i = 0;
 
     __m512 aVal, s, r, m4pi, pio4A, pio4B, pio4C, cp1, cp2, cp3, cp4, cp5, ffours, ftwos,
         fones;
@@ -482,6 +512,8 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
     ffours = _mm512_set1_ps(4.0);
     ftwos = _mm512_set1_ps(2.0);
     fones = _mm512_set1_ps(1.0);
+    const __m512 eighth = _mm512_set1_ps(0.125f);
+    const __m512 half = _mm512_set1_ps(0.5f);
     zeros = _mm512_setzero_epi32();
     ones = _mm512_set1_epi32(1);
     twos = _mm512_set1_epi32(2);
@@ -496,6 +528,8 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
 
     for (; number < sixteenPoints; number++) {
         aVal = _mm512_loadu_ps(inPtr);
+        __VOLK_PREFETCH(inPtr + 32);
+
         // s = fabs(aVal)
         s = (__m512)(_mm512_and_si512((__m512i)(aVal), _mm512_set1_epi32(0x7fffffff)));
 
@@ -508,9 +542,7 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
         s = _mm512_fnmadd_ps(r, pio4B, s);
         s = _mm512_fnmadd_ps(r, pio4C, s);
 
-        s = _mm512_div_ps(
-            s,
-            _mm512_set1_ps(8.0f)); // The constant is 2^N, for 3 times argument reduction
+        s = _mm512_mul_ps(s, eighth); // The constant is 2^N, for 3 times argument reduction
         s = _mm512_mul_ps(s, s);
         // Evaluate Taylor series
         s = _mm512_mul_ps(
@@ -521,10 +553,10 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
                 cp1),
             s);
 
-        for (i = 0; i < 3; i++) {
-            s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
-        }
-        s = _mm512_div_ps(s, ftwos);
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+        s = _mm512_mul_ps(s, _mm512_sub_ps(ffours, s));
+        s = _mm512_mul_ps(s, half);
 
         sine = _mm512_sqrt_ps(_mm512_mul_ps(_mm512_sub_ps(ftwos, s), s));
         cosine = _mm512_sub_ps(fones, s);
@@ -844,22 +876,6 @@ volk_32f_sin_32f_u_sse4_1(float* bVector, const float* aVector, unsigned int num
 #endif /* LV_HAVE_SSE4_1 for unaligned */
 
 
-#ifdef LV_HAVE_GENERIC
-
-static inline void
-volk_32f_sin_32f_generic(float* bVector, const float* aVector, unsigned int num_points)
-{
-    float* bPtr = bVector;
-    const float* aPtr = aVector;
-    unsigned int number = 0;
-
-    for (number = 0; number < num_points; number++) {
-        *bPtr++ = sinf(*aPtr++);
-    }
-}
-
-#endif /* LV_HAVE_GENERIC */
-
 
 #ifdef LV_HAVE_NEON
 #include <arm_neon.h>
@@ -895,67 +911,5 @@ volk_32f_sin_32f_neon(float* bVector, const float* aVector, unsigned int num_poi
 
 #endif /* LV_HAVE_NEON */
 
-#ifdef LV_HAVE_RVV
-#include <riscv_vector.h>
-
-static inline void
-volk_32f_sin_32f_rvv(float* bVector, const float* aVector, unsigned int num_points)
-{
-    size_t vlmax = __riscv_vsetvlmax_e32m2();
-
-    const vfloat32m2_t c4oPi = __riscv_vfmv_v_f_f32m2(1.2732395f, vlmax);
-    const vfloat32m2_t cPio4a = __riscv_vfmv_v_f_f32m2(0.7853982f, vlmax);
-    const vfloat32m2_t cPio4b = __riscv_vfmv_v_f_f32m2(7.946627e-09f, vlmax);
-    const vfloat32m2_t cPio4c = __riscv_vfmv_v_f_f32m2(3.061617e-17f, vlmax);
-
-    const vfloat32m2_t cf1 = __riscv_vfmv_v_f_f32m2(1.0f, vlmax);
-    const vfloat32m2_t cf4 = __riscv_vfmv_v_f_f32m2(4.0f, vlmax);
-
-    const vfloat32m2_t c2 = __riscv_vfmv_v_f_f32m2(0.0833333333f, vlmax);
-    const vfloat32m2_t c3 = __riscv_vfmv_v_f_f32m2(0.0027777778f, vlmax);
-    const vfloat32m2_t c4 = __riscv_vfmv_v_f_f32m2(4.9603175e-05, vlmax);
-    const vfloat32m2_t c5 = __riscv_vfmv_v_f_f32m2(5.5114638e-07, vlmax);
-
-    size_t n = num_points;
-    for (size_t vl; n > 0; n -= vl, aVector += vl, bVector += vl) {
-        vl = __riscv_vsetvl_e32m2(n);
-        vfloat32m2_t v = __riscv_vle32_v_f32m2(aVector, vl);
-        vfloat32m2_t s = __riscv_vfabs(v, vl);
-        vint32m2_t q = __riscv_vfcvt_x(__riscv_vfmul(s, c4oPi, vl), vl);
-        vfloat32m2_t r = __riscv_vfcvt_f(__riscv_vadd(q, __riscv_vand(q, 1, vl), vl), vl);
-
-        s = __riscv_vfnmsac(s, cPio4a, r, vl);
-        s = __riscv_vfnmsac(s, cPio4b, r, vl);
-        s = __riscv_vfnmsac(s, cPio4c, r, vl);
-
-        s = __riscv_vfmul(s, 1 / 8.0f, vl);
-        s = __riscv_vfmul(s, s, vl);
-        vfloat32m2_t t = s;
-        s = __riscv_vfmsub(s, c5, c4, vl);
-        s = __riscv_vfmadd(s, t, c3, vl);
-        s = __riscv_vfmsub(s, t, c2, vl);
-        s = __riscv_vfmadd(s, t, cf1, vl);
-        s = __riscv_vfmul(s, t, vl);
-        s = __riscv_vfmul(s, __riscv_vfsub(cf4, s, vl), vl);
-        s = __riscv_vfmul(s, __riscv_vfsub(cf4, s, vl), vl);
-        s = __riscv_vfmul(s, __riscv_vfsub(cf4, s, vl), vl);
-        s = __riscv_vfmul(s, 1 / 2.0f, vl);
-
-        vfloat32m2_t sine =
-            __riscv_vfsqrt(__riscv_vfmul(__riscv_vfrsub(s, 2.0f, vl), s, vl), vl);
-        vfloat32m2_t cosine = __riscv_vfsub(cf1, s, vl);
-
-        vbool16_t m1 = __riscv_vmsne(__riscv_vand(__riscv_vadd(q, 1, vl), 2, vl), 0, vl);
-        vbool16_t m2 = __riscv_vmxor(__riscv_vmslt(__riscv_vreinterpret_i32m2(v), 0, vl),
-                                     __riscv_vmsne(__riscv_vand(q, 4, vl), 0, vl),
-                                     vl);
-
-        sine = __riscv_vmerge(sine, cosine, m1, vl);
-        sine = __riscv_vfneg_mu(m2, sine, sine, vl);
-
-        __riscv_vse32(bVector, sine, vl);
-    }
-}
-#endif /*LV_HAVE_RVV*/
 
 #endif /* INCLUDED_volk_32f_sin_32f_u_H */
