@@ -146,5 +146,4 @@ static inline __m512 _mm512_normalize_ps(const __m512 val)
     // Divide by magnitude
     return _mm512_div_ps(val, mag);
 }
-
 #endif /* INCLUDE_VOLK_VOLK_AVX512_INTRINSICS_H_ */
