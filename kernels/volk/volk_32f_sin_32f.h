@@ -542,7 +542,8 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
         s = _mm512_fnmadd_ps(r, pio4B, s);
         s = _mm512_fnmadd_ps(r, pio4C, s);
 
-        s = _mm512_mul_ps(s, eighth); // The constant is 2^N, for 3 times argument reduction
+        s = _mm512_mul_ps(s,
+                          eighth); // The constant is 2^N, for 3 times argument reduction
         s = _mm512_mul_ps(s, s);
         // Evaluate Taylor series
         s = _mm512_mul_ps(
@@ -874,7 +875,6 @@ volk_32f_sin_32f_u_sse4_1(float* bVector, const float* aVector, unsigned int num
 }
 
 #endif /* LV_HAVE_SSE4_1 for unaligned */
-
 
 
 #ifdef LV_HAVE_NEON

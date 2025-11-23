@@ -158,11 +158,24 @@ static inline void volk_32fc_x2_conjugate_dot_prod_32fc_u_avx512(lv_32fc_t* resu
 
         // Create mask for subtraction pattern: subtract even indices, add odd indices
         // This gives us | ai⋅bi | −ar⋅bi | … (addsub pattern)
-        const __m512 neg_mask = _mm512_set_ps(
-            1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
-            1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f);
-        sum_a_mult_b_imag = _mm512_add_ps(sum_a_mult_b_imag,
-                                          _mm512_mul_ps(a_mult_b_imag, neg_mask));
+        const __m512 neg_mask = _mm512_set_ps(1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f);
+        sum_a_mult_b_imag =
+            _mm512_add_ps(sum_a_mult_b_imag, _mm512_mul_ps(a_mult_b_imag, neg_mask));
     }
 
     // Swap position of −ar⋅bi and ai⋅bi.
@@ -416,11 +429,24 @@ static inline void volk_32fc_x2_conjugate_dot_prod_32fc_a_avx512(lv_32fc_t* resu
 
         // Create mask for subtraction pattern: subtract even indices, add odd indices
         // This gives us | ai⋅bi | −ar⋅bi | … (addsub pattern)
-        const __m512 neg_mask = _mm512_set_ps(
-            1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
-            1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f);
-        sum_a_mult_b_imag = _mm512_add_ps(sum_a_mult_b_imag,
-                                          _mm512_mul_ps(a_mult_b_imag, neg_mask));
+        const __m512 neg_mask = _mm512_set_ps(1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f,
+                                              1.0f,
+                                              -1.0f);
+        sum_a_mult_b_imag =
+            _mm512_add_ps(sum_a_mult_b_imag, _mm512_mul_ps(a_mult_b_imag, neg_mask));
     }
 
     // Swap position of −ar⋅bi and ai⋅bi.
