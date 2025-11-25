@@ -30,6 +30,12 @@
 #include <sstream> // for ostringstream
 #include <vector>  // for vector, _Bit_refe...
 
+// Warmup time for CPU frequency scaling (ms)
+static double g_warmup_ms = 2000.0;
+
+double volk_test_get_warmup_ms() { return g_warmup_ms; }
+void volk_test_set_warmup_ms(double ms) { g_warmup_ms = ms; }
+
 template <typename T>
 void random_floats(void* buf, unsigned int n, std::default_random_engine& rnd_engine)
 {
@@ -722,9 +728,8 @@ bool run_volk_tests(volk_func_desc_t desc,
     std::chrono::time_point<std::chrono::system_clock> start, end;
     std::vector<double> profile_times;
 
-    // CPU frequency scaling warmup: Run generic for ≥500ms to boost CPU to full speed
-    // This eliminates ~50ms first-kernel penalty from turbo boost ramp-up time
-    const double warmup_target_ms = 500.0;
+    // Warmup to let CPU reach full turbo frequency
+    const double warmup_target_ms = volk_test_get_warmup_ms();
     {
         // Run a quick test to estimate time per iteration
         start = std::chrono::system_clock::now();
@@ -903,19 +908,19 @@ bool run_volk_tests(volk_func_desc_t desc,
         }
     }
 
-    // Reload test_data[0] buffers after warmup
-    // Warmup may have modified data (e.g., in-place byteswap operations)
-    // Clear output buffers
-    for (size_t j = 0; j < outputsig.size(); j++) {
-        memset(test_data[0][j],
-               0,
-               vlen * outputsig[j].size * (outputsig[j].is_complex ? 2 : 1));
-    }
-    // Reload input buffers from original data
-    for (size_t j = 0; j < inputsig.size(); j++) {
-        memcpy(test_data[0][outputsig.size() + j],
-               inbuffs[j],
-               vlen * inputsig[j].size * (inputsig[j].is_complex ? 2 : 1));
+    // Reset all test buffers after warmup
+    for (size_t i = 0; i < arch_list.size(); i++) {
+        for (size_t j = 0; j < outputsig.size(); j++) {
+            memset(test_data[i][j],
+                   0,
+                   vlen * outputsig[j].size * (outputsig[j].is_complex ? 2 : 1));
+        }
+        // Reload input buffers from original data
+        for (size_t j = 0; j < inputsig.size(); j++) {
+            memcpy(test_data[i][outputsig.size() + j],
+                   inbuffs[j],
+                   vlen * inputsig[j].size * (inputsig[j].is_complex ? 2 : 1));
+        }
     }
 
     for (size_t i = 0; i < arch_list.size(); i++) {

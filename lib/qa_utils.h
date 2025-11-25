@@ -20,6 +20,12 @@
 #include "volk/volk_complex.h" // for lv_32fc_t
 
 /************************************************
+ * Warmup time configuration                    *
+ ************************************************/
+double volk_test_get_warmup_ms();
+void volk_test_set_warmup_ms(double ms);
+
+/************************************************
  * VOLK QA type definitions                     *
  ************************************************/
 struct volk_type_t {

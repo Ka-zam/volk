@@ -31,7 +31,8 @@ void set_benchmark(bool val) { test_params.set_benchmark(val); }
 void set_tolerance(float val) { test_params.set_tol(val); }
 void set_vlen(int val) { test_params.set_vlen((unsigned int)val); }
 void set_iter(int val) { test_params.set_iter((unsigned int)val); }
-void set_substr(std::string val) { test_params.set_regex(val); }
+std::vector<std::string> kernel_patterns;
+void set_substr(std::string val) { kernel_patterns.push_back(val); }
 bool update_mode = false;
 void set_update(bool val) { update_mode = val; }
 bool dry_run = false;
@@ -40,6 +41,7 @@ std::string json_filename("");
 void set_json(std::string val) { json_filename = val; }
 std::string volk_config_path("");
 void set_volk_config(std::string val) { volk_config_path = val; }
+void set_warmup(int val) { volk_test_set_warmup_ms((double)val); }
 
 int main(int argc, char* argv[])
 {
@@ -53,8 +55,10 @@ int main(int argc, char* argv[])
         option_t("vlen", "v", "Set the default vector length for tests", set_vlen));
     profile_options.add((option_t(
         "iter", "i", "Set the default number of test iterations per kernel", set_iter)));
-    profile_options.add(
-        (option_t("tests-substr", "R", "Run tests matching substring", set_substr)));
+    profile_options.add((option_t("tests-substr",
+                                  "R",
+                                  "Run tests matching substring (can be repeated)",
+                                  set_substr)));
     profile_options.add(
         (option_t("update", "u", "Run only kernels missing from config", set_update)));
     profile_options.add(
@@ -66,6 +70,8 @@ int main(int argc, char* argv[])
         "json", "j", "Write results to JSON file named as argument value", set_json)));
     profile_options.add(
         (option_t("path", "p", "Specify the volk_config path", set_volk_config)));
+    profile_options.add(
+        (option_t("warmup", "w", "Set warmup time in ms (default 2000)", set_warmup)));
     profile_options.parse(argc, argv);
 
     if (profile_options.present("help")) {
@@ -102,15 +108,17 @@ int main(int argc, char* argv[])
     std::vector<volk_test_case_t> test_cases = init_test_list(test_params);
 
     // Iterate through list of tests running each one
-    std::string substr_to_match(test_params.kernel_regex());
     for (unsigned int ii = 0; ii < test_cases.size(); ++ii) {
-        bool regex_match = true;
-
         volk_test_case_t test_case = test_cases[ii];
-        // if the kernel name matches regex then do the test
         std::string test_case_name = test_case.name();
-        if (test_case_name.find(substr_to_match) == std::string::npos) {
-            regex_match = false;
+
+        // Check if kernel name matches any of the patterns (or all if no patterns given)
+        bool regex_match = kernel_patterns.empty();
+        for (const auto& pattern : kernel_patterns) {
+            if (test_case_name.find(pattern) != std::string::npos) {
+                regex_match = true;
+                break;
+            }
         }
 
         // if we are in update mode check if we've already got results
