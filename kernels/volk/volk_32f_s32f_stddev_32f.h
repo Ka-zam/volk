@@ -239,6 +239,125 @@ static inline void volk_32f_s32f_stddev_32f_a_avx(float* stddev,
 #endif /* LV_HAVE_AVX */
 
 
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+
+static inline void volk_32f_s32f_stddev_32f_a_avx512f(float* stddev,
+                                                      const float* inputBuffer,
+                                                      const float mean,
+                                                      unsigned int num_points)
+{
+    float stdDev = 0;
+    if (num_points > 0) {
+        unsigned int number = 0;
+        const unsigned int sixtyfourth_points = num_points / 64;
+
+        const float* aPtr = inputBuffer;
+        __VOLK_ATTR_ALIGNED(64) float squareBuffer[16];
+
+        __m512 squareAccumulator = _mm512_setzero_ps();
+        __m512 aVal1, aVal2, aVal3, aVal4;
+        __m512 cVal1, cVal2, cVal3, cVal4;
+        for (; number < sixtyfourth_points; number++) {
+            aVal1 = _mm512_load_ps(aPtr);
+            aPtr += 16;
+            cVal1 = _mm512_mul_ps(aVal1, aVal1);
+
+            aVal2 = _mm512_load_ps(aPtr);
+            aPtr += 16;
+            cVal2 = _mm512_mul_ps(aVal2, aVal2);
+
+            aVal3 = _mm512_load_ps(aPtr);
+            aPtr += 16;
+            cVal3 = _mm512_mul_ps(aVal3, aVal3);
+
+            aVal4 = _mm512_load_ps(aPtr);
+            aPtr += 16;
+            cVal4 = _mm512_mul_ps(aVal4, aVal4);
+
+            cVal1 = _mm512_add_ps(cVal1, cVal2);
+            cVal3 = _mm512_add_ps(cVal3, cVal4);
+            cVal1 = _mm512_add_ps(cVal1, cVal3);
+
+            squareAccumulator = _mm512_add_ps(squareAccumulator, cVal1);
+        }
+
+        // Horizontal sum using AVX512 reduce instruction
+        stdDev = _mm512_reduce_add_ps(squareAccumulator);
+
+        number = sixtyfourth_points * 64;
+        for (; number < num_points; number++) {
+            stdDev += (*aPtr) * (*aPtr);
+            aPtr++;
+        }
+        stdDev /= num_points;
+        stdDev -= (mean * mean);
+        stdDev = sqrtf(stdDev);
+    }
+    *stddev = stdDev;
+}
+#endif /* LV_HAVE_AVX512F */
+
+
+#ifdef LV_HAVE_AVX512F
+#include <immintrin.h>
+
+static inline void volk_32f_s32f_stddev_32f_u_avx512f(float* stddev,
+                                                      const float* inputBuffer,
+                                                      const float mean,
+                                                      unsigned int num_points)
+{
+    float stdDev = 0;
+    if (num_points > 0) {
+        unsigned int number = 0;
+        const unsigned int sixtyfourth_points = num_points / 64;
+
+        const float* aPtr = inputBuffer;
+
+        __m512 squareAccumulator = _mm512_setzero_ps();
+        __m512 aVal1, aVal2, aVal3, aVal4;
+        __m512 cVal1, cVal2, cVal3, cVal4;
+        for (; number < sixtyfourth_points; number++) {
+            aVal1 = _mm512_loadu_ps(aPtr);
+            aPtr += 16;
+            cVal1 = _mm512_mul_ps(aVal1, aVal1);
+
+            aVal2 = _mm512_loadu_ps(aPtr);
+            aPtr += 16;
+            cVal2 = _mm512_mul_ps(aVal2, aVal2);
+
+            aVal3 = _mm512_loadu_ps(aPtr);
+            aPtr += 16;
+            cVal3 = _mm512_mul_ps(aVal3, aVal3);
+
+            aVal4 = _mm512_loadu_ps(aPtr);
+            aPtr += 16;
+            cVal4 = _mm512_mul_ps(aVal4, aVal4);
+
+            cVal1 = _mm512_add_ps(cVal1, cVal2);
+            cVal3 = _mm512_add_ps(cVal3, cVal4);
+            cVal1 = _mm512_add_ps(cVal1, cVal3);
+
+            squareAccumulator = _mm512_add_ps(squareAccumulator, cVal1);
+        }
+
+        // Horizontal sum using AVX512 reduce instruction
+        stdDev = _mm512_reduce_add_ps(squareAccumulator);
+
+        number = sixtyfourth_points * 64;
+        for (; number < num_points; number++) {
+            stdDev += (*aPtr) * (*aPtr);
+            aPtr++;
+        }
+        stdDev /= num_points;
+        stdDev -= (mean * mean);
+        stdDev = sqrtf(stdDev);
+    }
+    *stddev = stdDev;
+}
+#endif /* LV_HAVE_AVX512F */
+
+
 #ifdef LV_HAVE_GENERIC
 
 static inline void volk_32f_s32f_stddev_32f_generic(float* stddev,

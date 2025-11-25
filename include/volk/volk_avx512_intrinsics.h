@@ -146,4 +146,19 @@ static inline __m512 _mm512_normalize_ps(const __m512 val)
     // Divide by magnitude
     return _mm512_div_ps(val, mag);
 }
+
+////////////////////////////////////////////////////////////////////////
+// Accumulate square sum for Young and Cramer's stddev algorithm
+// Requires AVX512F
+////////////////////////////////////////////////////////////////////////
+static inline __m512 _mm512_accumulate_square_sum_ps(
+    __m512 sq_acc, __m512 acc, __m512 val, __m512 rec, __m512 aux)
+{
+    aux = _mm512_mul_ps(aux, val);
+    aux = _mm512_sub_ps(aux, acc);
+    aux = _mm512_mul_ps(aux, aux);
+    aux = _mm512_mul_ps(aux, rec);
+    return _mm512_add_ps(sq_acc, aux);
+}
+
 #endif /* INCLUDE_VOLK_VOLK_AVX512_INTRINSICS_H_ */
