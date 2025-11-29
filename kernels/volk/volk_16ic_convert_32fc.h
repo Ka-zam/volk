@@ -214,28 +214,35 @@ static inline void volk_16ic_convert_32fc_neon(lv_32fc_t* outputVector,
                                                const lv_16sc_t* inputVector,
                                                unsigned int num_points)
 {
-    const unsigned int sse_iters = num_points / 2;
+    const unsigned int neon_iters = num_points / 4;
 
-    const lv_16sc_t* _in = inputVector;
-    lv_32fc_t* _out = outputVector;
+    const int16_t* _in = (const int16_t*)inputVector;
+    float* _out = (float*)outputVector;
 
-    int16x4_t a16x4;
-    int32x4_t a32x4;
-    float32x4_t f32x4;
-    unsigned int i, number;
+    unsigned int number;
 
-    for (number = 0; number < sse_iters; number++) {
-        a16x4 = vld1_s16((const int16_t*)_in);
-        __VOLK_PREFETCH(_in + 4);
-        a32x4 = vmovl_s16(a16x4);
-        f32x4 = vcvtq_f32_s32(a32x4);
-        vst1q_f32((float32_t*)_out, f32x4);
-        _in += 2;
-        _out += 2;
+    for (number = 0; number < neon_iters; number++) {
+        // Load 8 int16 values (4 complex numbers) using full 128-bit width
+        int16x8_t a16x8 = vld1q_s16(_in);
+        __VOLK_PREFETCH(_in + 16);
+
+        // Split into low/high halves and widen to int32
+        int32x4_t lo32 = vmovl_s16(vget_low_s16(a16x8));
+        int32x4_t hi32 = vmovl_s16(vget_high_s16(a16x8));
+
+        // Convert to float and store
+        vst1q_f32(_out, vcvtq_f32_s32(lo32));
+        vst1q_f32(_out + 4, vcvtq_f32_s32(hi32));
+
+        _in += 8;
+        _out += 8;
     }
-    for (i = 0; i < (num_points % 2); ++i) {
-        *_out++ = lv_cmake((float)lv_creal(*_in), (float)lv_cimag(*_in));
-        _in++;
+
+    // Handle remaining elements
+    number = neon_iters * 4;
+    for (; number < num_points; number++) {
+        *_out++ = (float)*_in++;
+        *_out++ = (float)*_in++;
     }
 }
 #endif /* LV_HAVE_NEON */

@@ -417,6 +417,77 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2(float* outputVector,
         out, (lv_32fc_t*)in, normalizeFactor, num_points - number);
 }
 #endif /* LV_HAVE_AVX2 for aligned */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
+                                                  const lv_32fc_t* complexVector,
+                                                  const float normalizeFactor,
+                                                  unsigned int num_points)
+{
+    const float* in = (float*)complexVector;
+    float* out = outputVector;
+
+    const float invNormalizeFactor = 1.f / normalizeFactor;
+    const float32x4_t vInvNorm = vdupq_n_f32(invNormalizeFactor);
+    const float32x4_t pi = vdupq_n_f32(0x1.921fb6p1f);
+    const float32x4_t pi_2 = vdupq_n_f32(0x1.921fb6p0f);
+    const float32x4_t zero = vdupq_n_f32(0.f);
+    const uint32x4_t sign_mask = vdupq_n_u32(0x80000000);
+
+    const unsigned int quarter_points = num_points / 4;
+
+    for (unsigned int number = 0; number < quarter_points; number++) {
+        // Load 4 complex numbers (8 floats) and deinterleave
+        float32x4x2_t z = vld2q_f32(in);
+        in += 8;
+
+        float32x4_t x = z.val[0]; // real
+        float32x4_t y = z.val[1]; // imag
+
+        // swap_mask = |y| > |x|
+        float32x4_t abs_x = vabsq_f32(x);
+        float32x4_t abs_y = vabsq_f32(y);
+        uint32x4_t swap_mask = vcgtq_f32(abs_y, abs_x);
+
+        // numerator = swap ? x : y, denominator = swap ? y : x
+        float32x4_t numerator = vbslq_f32(swap_mask, x, y);
+        float32x4_t denominator = vbslq_f32(swap_mask, y, x);
+        float32x4_t input = vmulq_f32(numerator, _vinvq_f32(denominator));
+
+        // Handle 0/0 case: replace NaN with 0 (preserving sign)
+        uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(input, input));
+        input = vbslq_f32(nan_mask, zero, input);
+
+        // Compute arctan polynomial
+        float32x4_t result = _varctan_poly_f32(input);
+
+        // If swapped: result = sign(input)*pi/2 - result
+        uint32x4_t input_sign = vandq_u32(vreinterpretq_u32_f32(input), sign_mask);
+        float32x4_t term = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign));
+        term = vsubq_f32(term, result);
+        result = vbslq_f32(swap_mask, term, result);
+
+        // Adjust for quadrant: if x < 0, add sign(y)*pi
+        uint32x4_t x_neg_mask = vcltq_f32(x, zero);
+        uint32x4_t y_sign = vandq_u32(vreinterpretq_u32_f32(y), sign_mask);
+        float32x4_t pi_adj = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign));
+        result = vbslq_f32(x_neg_mask, vaddq_f32(result, pi_adj), result);
+
+        // Apply normalization
+        result = vmulq_f32(result, vInvNorm);
+
+        vst1q_f32(out, result);
+        out += 4;
+    }
+
+    unsigned int number = quarter_points * 4;
+    volk_32fc_s32f_atan2_32f_polynomial(
+        out, complexVector + number, normalizeFactor, num_points - number);
+}
+#endif /* LV_HAVE_NEON */
+
 #endif /* INCLUDED_volk_32fc_s32f_atan2_32f_a_H */
 
 #ifndef INCLUDED_volk_32fc_s32f_atan2_32f_u_H
