@@ -214,33 +214,31 @@ static inline void volk_16ic_convert_32fc_neon(lv_32fc_t* outputVector,
                                                const lv_16sc_t* inputVector,
                                                unsigned int num_points)
 {
-    const unsigned int neon_iters = num_points / 4;
-
     const int16_t* _in = (const int16_t*)inputVector;
     float* _out = (float*)outputVector;
+    unsigned int n = num_points;
 
-    unsigned int number;
+    // Process 8 complex numbers per iteration using 64-bit loads
+    // This avoids vget_low/vget_high overhead
+    while (n >= 8) {
+        int16x4_t v0 = vld1_s16(_in);
+        int16x4_t v1 = vld1_s16(_in + 4);
+        int16x4_t v2 = vld1_s16(_in + 8);
+        int16x4_t v3 = vld1_s16(_in + 12);
+        __VOLK_PREFETCH(_in + 32);
 
-    for (number = 0; number < neon_iters; number++) {
-        // Load 8 int16 values (4 complex numbers) using full 128-bit width
-        int16x8_t a16x8 = vld1q_s16(_in);
-        __VOLK_PREFETCH(_in + 16);
+        vst1q_f32(_out, vcvtq_f32_s32(vmovl_s16(v0)));
+        vst1q_f32(_out + 4, vcvtq_f32_s32(vmovl_s16(v1)));
+        vst1q_f32(_out + 8, vcvtq_f32_s32(vmovl_s16(v2)));
+        vst1q_f32(_out + 12, vcvtq_f32_s32(vmovl_s16(v3)));
 
-        // Split into low/high halves and widen to int32
-        int32x4_t lo32 = vmovl_s16(vget_low_s16(a16x8));
-        int32x4_t hi32 = vmovl_s16(vget_high_s16(a16x8));
-
-        // Convert to float and store
-        vst1q_f32(_out, vcvtq_f32_s32(lo32));
-        vst1q_f32(_out + 4, vcvtq_f32_s32(hi32));
-
-        _in += 8;
-        _out += 8;
+        _in += 16;
+        _out += 16;
+        n -= 8;
     }
 
     // Handle remaining elements
-    number = neon_iters * 4;
-    for (; number < num_points; number++) {
+    while (n--) {
         *_out++ = (float)*_in++;
         *_out++ = (float)*_in++;
     }
