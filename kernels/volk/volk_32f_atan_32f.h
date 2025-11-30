@@ -211,6 +211,49 @@ volk_32f_atan_32f_a_sse4_1(float* out, const float* in, unsigned int num_points)
     }
 }
 #endif /* LV_HAVE_SSE4_1 for aligned */
+
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+static inline void
+volk_32f_atan_32f_neon(float* out, const float* in, unsigned int num_points)
+{
+    const float32x4_t one = vdupq_n_f32(1.f);
+    const float32x4_t pi_over_2 = vdupq_n_f32(0x1.921fb6p0f);
+    const uint32x4_t sign_mask = vdupq_n_u32(0x80000000);
+
+    const unsigned int quarter_points = num_points / 4;
+
+    for (unsigned int number = 0; number < quarter_points; number++) {
+        float32x4_t x = vld1q_f32(in);
+        in += 4;
+
+        // swap_mask = |x| > 1
+        float32x4_t abs_x = vabsq_f32(x);
+        uint32x4_t swap_mask = vcgtq_f32(abs_x, one);
+
+        // x_star = swap_mask ? 1/x : x
+        float32x4_t x_star = vbslq_f32(swap_mask, _vinvq_f32(x), x);
+
+        // Compute arctan polynomial
+        float32x4_t result = _varctan_poly_f32(x_star);
+
+        // If swapped: result = sign(x_star)*pi/2 - result
+        uint32x4_t x_star_sign = vandq_u32(vreinterpretq_u32_f32(x_star), sign_mask);
+        float32x4_t term = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign));
+        term = vsubq_f32(term, result);
+        result = vbslq_f32(swap_mask, term, result);
+
+        vst1q_f32(out, result);
+        out += 4;
+    }
+
+    for (unsigned int number = quarter_points * 4; number < num_points; number++) {
+        *out++ = volk_arctan(*in++);
+    }
+}
+#endif /* LV_HAVE_NEON */
+
 #endif /* INCLUDED_volk_32f_atan_32f_a_H */
 
 #ifndef INCLUDED_volk_32f_atan_32f_u_H

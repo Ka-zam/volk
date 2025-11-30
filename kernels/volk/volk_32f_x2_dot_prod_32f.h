@@ -848,86 +848,52 @@ static inline void volk_32f_x2_dot_prod_32f_a_avx512f(float* result,
 #ifdef LV_HAVE_NEON
 #include <arm_neon.h>
 
-static inline void volk_32f_x2_dot_prod_32f_neonopts(float* result,
-                                                     const float* input,
-                                                     const float* taps,
-                                                     unsigned int num_points)
-{
-
-    unsigned int quarter_points = num_points / 16;
-    float dotProduct = 0;
-    const float* aPtr = input;
-    const float* bPtr = taps;
-    unsigned int number = 0;
-
-    float32x4x4_t a_val, b_val, accumulator0;
-    accumulator0.val[0] = vdupq_n_f32(0);
-    accumulator0.val[1] = vdupq_n_f32(0);
-    accumulator0.val[2] = vdupq_n_f32(0);
-    accumulator0.val[3] = vdupq_n_f32(0);
-    // factor of 4 loop unroll with independent accumulators
-    // uses 12 out of 16 neon q registers
-    for (number = 0; number < quarter_points; ++number) {
-        a_val = vld4q_f32(aPtr);
-        b_val = vld4q_f32(bPtr);
-        accumulator0.val[0] = vmlaq_f32(accumulator0.val[0], a_val.val[0], b_val.val[0]);
-        accumulator0.val[1] = vmlaq_f32(accumulator0.val[1], a_val.val[1], b_val.val[1]);
-        accumulator0.val[2] = vmlaq_f32(accumulator0.val[2], a_val.val[2], b_val.val[2]);
-        accumulator0.val[3] = vmlaq_f32(accumulator0.val[3], a_val.val[3], b_val.val[3]);
-        aPtr += 16;
-        bPtr += 16;
-    }
-    accumulator0.val[0] = vaddq_f32(accumulator0.val[0], accumulator0.val[1]);
-    accumulator0.val[2] = vaddq_f32(accumulator0.val[2], accumulator0.val[3]);
-    accumulator0.val[0] = vaddq_f32(accumulator0.val[2], accumulator0.val[0]);
-    __VOLK_ATTR_ALIGNED(32) float accumulator[4];
-    vst1q_f32(accumulator, accumulator0.val[0]);
-    dotProduct = accumulator[0] + accumulator[1] + accumulator[2] + accumulator[3];
-
-    for (number = quarter_points * 16; number < num_points; number++) {
-        dotProduct += ((*aPtr++) * (*bPtr++));
-    }
-
-    *result = dotProduct;
-}
-
-#endif
-
-
-#ifdef LV_HAVE_NEON
 static inline void volk_32f_x2_dot_prod_32f_neon(float* result,
                                                  const float* input,
                                                  const float* taps,
                                                  unsigned int num_points)
 {
-
-    unsigned int quarter_points = num_points / 8;
-    float dotProduct = 0;
+    const unsigned int sixteenthPoints = num_points / 16;
     const float* aPtr = input;
     const float* bPtr = taps;
-    unsigned int number = 0;
 
-    float32x4x2_t a_val, b_val, accumulator_val;
-    accumulator_val.val[0] = vdupq_n_f32(0);
-    accumulator_val.val[1] = vdupq_n_f32(0);
-    // factor of 2 loop unroll with independent accumulators
-    for (number = 0; number < quarter_points; ++number) {
-        a_val = vld2q_f32(aPtr);
-        b_val = vld2q_f32(bPtr);
-        accumulator_val.val[0] =
-            vmlaq_f32(accumulator_val.val[0], a_val.val[0], b_val.val[0]);
-        accumulator_val.val[1] =
-            vmlaq_f32(accumulator_val.val[1], a_val.val[1], b_val.val[1]);
-        aPtr += 8;
-        bPtr += 8;
+    // Use 4 independent accumulators for better pipelining
+    float32x4_t acc0 = vdupq_n_f32(0);
+    float32x4_t acc1 = vdupq_n_f32(0);
+    float32x4_t acc2 = vdupq_n_f32(0);
+    float32x4_t acc3 = vdupq_n_f32(0);
+
+    for (unsigned int number = 0; number < sixteenthPoints; number++) {
+        float32x4_t a0 = vld1q_f32(aPtr);
+        float32x4_t a1 = vld1q_f32(aPtr + 4);
+        float32x4_t a2 = vld1q_f32(aPtr + 8);
+        float32x4_t a3 = vld1q_f32(aPtr + 12);
+
+        float32x4_t b0 = vld1q_f32(bPtr);
+        float32x4_t b1 = vld1q_f32(bPtr + 4);
+        float32x4_t b2 = vld1q_f32(bPtr + 8);
+        float32x4_t b3 = vld1q_f32(bPtr + 12);
+
+        acc0 = vmlaq_f32(acc0, a0, b0);
+        acc1 = vmlaq_f32(acc1, a1, b1);
+        acc2 = vmlaq_f32(acc2, a2, b2);
+        acc3 = vmlaq_f32(acc3, a3, b3);
+
+        aPtr += 16;
+        bPtr += 16;
     }
-    accumulator_val.val[0] = vaddq_f32(accumulator_val.val[0], accumulator_val.val[1]);
-    __VOLK_ATTR_ALIGNED(32) float accumulator[4];
-    vst1q_f32(accumulator, accumulator_val.val[0]);
-    dotProduct = accumulator[0] + accumulator[1] + accumulator[2] + accumulator[3];
 
-    for (number = quarter_points * 8; number < num_points; number++) {
-        dotProduct += ((*aPtr++) * (*bPtr++));
+    // Combine accumulators
+    acc0 = vaddq_f32(acc0, acc1);
+    acc2 = vaddq_f32(acc2, acc3);
+    acc0 = vaddq_f32(acc0, acc2);
+
+    // Horizontal sum
+    float dotProduct = vaddvq_f32(acc0);
+
+    // Handle remainder
+    for (unsigned int number = sixteenthPoints * 16; number < num_points; number++) {
+        dotProduct += (*aPtr++) * (*bPtr++);
     }
 
     *result = dotProduct;
