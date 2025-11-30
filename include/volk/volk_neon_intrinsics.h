@@ -312,4 +312,30 @@ static inline float32x4_t _neon_accumulate_square_sum_f32(float32x4_t sq_acc,
 #endif
 }
 
+#ifdef LV_HAVE_NEONV8
+/* ARMv8 NEON FMA-based arctan polynomial for better accuracy and throughput */
+static inline float32x4_t _varctan_poly_neonv8(float32x4_t x)
+{
+    const float32x4_t a1 = vdupq_n_f32(+0x1.ffffeap-1f);
+    const float32x4_t a3 = vdupq_n_f32(-0x1.55437p-2f);
+    const float32x4_t a5 = vdupq_n_f32(+0x1.972be6p-3f);
+    const float32x4_t a7 = vdupq_n_f32(-0x1.1436ap-3f);
+    const float32x4_t a9 = vdupq_n_f32(+0x1.5785aap-4f);
+    const float32x4_t a11 = vdupq_n_f32(-0x1.2f3004p-5f);
+    const float32x4_t a13 = vdupq_n_f32(+0x1.01a37cp-7f);
+
+    const float32x4_t x_sq = vmulq_f32(x, x);
+    float32x4_t result = a13;
+    result = vfmaq_f32(a11, x_sq, result);
+    result = vfmaq_f32(a9, x_sq, result);
+    result = vfmaq_f32(a7, x_sq, result);
+    result = vfmaq_f32(a5, x_sq, result);
+    result = vfmaq_f32(a3, x_sq, result);
+    result = vfmaq_f32(a1, x_sq, result);
+    result = vmulq_f32(x, result);
+
+    return result;
+}
+#endif /* LV_HAVE_NEONV8 */
+
 #endif /* INCLUDE_VOLK_VOLK_NEON_INTRINSICS_H_ */

@@ -893,11 +893,14 @@ volk_32f_sin_32f_neon(float* bVector, const float* aVector, unsigned int num_poi
     }
 }
 
-/* Experimental: sin-only polynomial, 2x unroll for better ILP */
+#endif /* LV_HAVE_NEON */
+
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+
+/* ARMv8 NEON with FMA: sin-only polynomial, 2x unroll for better ILP */
 static inline void
-volk_32f_sin_32f_neon_experiment(float* bVector,
-                                  const float* aVector,
-                                  unsigned int num_points)
+volk_32f_sin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_points)
 {
     const float32x4_t c_minus_cephes_DP1 = vdupq_n_f32(-0.78515625f);
     const float32x4_t c_minus_cephes_DP2 = vdupq_n_f32(-2.4187564849853515625e-4f);
@@ -989,7 +992,7 @@ volk_32f_sin_32f_neon_experiment(float* bVector,
     }
 }
 
-#endif /* LV_HAVE_NEON */
+#endif /* LV_HAVE_NEONV8 */
 
 #ifdef LV_HAVE_RVV
 #include <riscv_vector.h>

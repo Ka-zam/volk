@@ -254,6 +254,56 @@ volk_32f_atan_32f_neon(float* out, const float* in, unsigned int num_points)
 }
 #endif /* LV_HAVE_NEON */
 
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+/* ARMv8 NEON with FMA and 2x unrolling for better ILP */
+static inline void
+volk_32f_atan_32f_neonv8(float* out, const float* in, unsigned int num_points)
+{
+    const float32x4_t one = vdupq_n_f32(1.f);
+    const float32x4_t pi_over_2 = vdupq_n_f32(0x1.921fb6p0f);
+    const uint32x4_t sign_mask = vdupq_n_u32(0x80000000);
+
+    const unsigned int eighth_points = num_points / 8;
+
+    for (unsigned int number = 0; number < eighth_points; number++) {
+        /* Load 8 floats */
+        float32x4_t x0 = vld1q_f32(in);
+        float32x4_t x1 = vld1q_f32(in + 4);
+        in += 8;
+
+        /* Process first 4 */
+        float32x4_t abs_x0 = vabsq_f32(x0);
+        uint32x4_t swap_mask0 = vcgtq_f32(abs_x0, one);
+        float32x4_t x_star0 = vbslq_f32(swap_mask0, _vinvq_f32(x0), x0);
+        float32x4_t result0 = _varctan_poly_neonv8(x_star0);
+        uint32x4_t x_star_sign0 = vandq_u32(vreinterpretq_u32_f32(x_star0), sign_mask);
+        float32x4_t term0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign0));
+        term0 = vsubq_f32(term0, result0);
+        result0 = vbslq_f32(swap_mask0, term0, result0);
+
+        /* Process second 4 */
+        float32x4_t abs_x1 = vabsq_f32(x1);
+        uint32x4_t swap_mask1 = vcgtq_f32(abs_x1, one);
+        float32x4_t x_star1 = vbslq_f32(swap_mask1, _vinvq_f32(x1), x1);
+        float32x4_t result1 = _varctan_poly_neonv8(x_star1);
+        uint32x4_t x_star_sign1 = vandq_u32(vreinterpretq_u32_f32(x_star1), sign_mask);
+        float32x4_t term1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign1));
+        term1 = vsubq_f32(term1, result1);
+        result1 = vbslq_f32(swap_mask1, term1, result1);
+
+        vst1q_f32(out, result0);
+        vst1q_f32(out + 4, result1);
+        out += 8;
+    }
+
+    for (unsigned int number = eighth_points * 8; number < num_points; number++) {
+        *out++ = volk_arctan(*in++);
+    }
+}
+#endif /* LV_HAVE_NEONV8 */
+
 #endif /* INCLUDED_volk_32f_atan_32f_a_H */
 
 #ifndef INCLUDED_volk_32f_atan_32f_u_H
