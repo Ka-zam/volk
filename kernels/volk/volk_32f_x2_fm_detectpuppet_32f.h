@@ -70,6 +70,20 @@ static inline void volk_32f_x2_fm_detectpuppet_32f_neon(float* outputVector,
 }
 #endif /* LV_HAVE_NEON */
 
+#ifdef LV_HAVE_NEONV8
+
+static inline void volk_32f_x2_fm_detectpuppet_32f_neonv8(float* outputVector,
+                                                           const float* inputVector,
+                                                           float* saveValue,
+                                                           unsigned int num_points)
+{
+    const float bound = 2.0f;
+
+    volk_32f_s32f_32f_fm_detect_32f_neonv8(
+        outputVector, inputVector, bound, saveValue, num_points);
+}
+#endif /* LV_HAVE_NEONV8 */
+
 #endif /* INCLUDED_volk_32f_x2_fm_detectpuppet_32f_a_H */
 
 
