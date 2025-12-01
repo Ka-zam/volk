@@ -240,7 +240,8 @@ volk_32f_atan_32f_neon(float* out, const float* in, unsigned int num_points)
 
         // If swapped: result = sign(x_star)*pi/2 - result
         uint32x4_t x_star_sign = vandq_u32(vreinterpretq_u32_f32(x_star), sign_mask);
-        float32x4_t term = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign));
+        float32x4_t term = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign));
         term = vsubq_f32(term, result);
         result = vbslq_f32(swap_mask, term, result);
 
@@ -279,7 +280,8 @@ volk_32f_atan_32f_neonv8(float* out, const float* in, unsigned int num_points)
         float32x4_t x_star0 = vbslq_f32(swap_mask0, _vinvq_f32(x0), x0);
         float32x4_t result0 = _varctan_poly_neonv8(x_star0);
         uint32x4_t x_star_sign0 = vandq_u32(vreinterpretq_u32_f32(x_star0), sign_mask);
-        float32x4_t term0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign0));
+        float32x4_t term0 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign0));
         term0 = vsubq_f32(term0, result0);
         result0 = vbslq_f32(swap_mask0, term0, result0);
 
@@ -289,7 +291,8 @@ volk_32f_atan_32f_neonv8(float* out, const float* in, unsigned int num_points)
         float32x4_t x_star1 = vbslq_f32(swap_mask1, _vinvq_f32(x1), x1);
         float32x4_t result1 = _varctan_poly_neonv8(x_star1);
         uint32x4_t x_star_sign1 = vandq_u32(vreinterpretq_u32_f32(x_star1), sign_mask);
-        float32x4_t term1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign1));
+        float32x4_t term1 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(pi_over_2), x_star_sign1));
         term1 = vsubq_f32(term1, result1);
         result1 = vbslq_f32(swap_mask1, term1, result1);
 

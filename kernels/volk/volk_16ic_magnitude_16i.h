@@ -415,8 +415,8 @@ static inline void volk_16ic_magnitude_16i_neonv7(int16_t* magnitudeVector,
 #include <arm_neon.h>
 
 static inline void volk_16ic_magnitude_16i_neonv8(int16_t* magnitudeVector,
-                                                   const lv_16sc_t* complexVector,
-                                                   unsigned int num_points)
+                                                  const lv_16sc_t* complexVector,
+                                                  unsigned int num_points)
 {
     unsigned int number = 0;
     unsigned int quarter_points = num_points / 4;
@@ -439,9 +439,8 @@ static inline void volk_16ic_magnitude_16i_neonv8(int16_t* magnitudeVector,
         c_vec.val[0] = vmulq_n_f32(c_vec.val[0], inv_scalar);
         c_vec.val[1] = vmulq_n_f32(c_vec.val[1], inv_scalar);
         // ARMv8: Use FMA for magnitude squared and native sqrt
-        mag_sq = vfmaq_f32(vmulq_f32(c_vec.val[0], c_vec.val[0]),
-                           c_vec.val[1],
-                           c_vec.val[1]);
+        mag_sq =
+            vfmaq_f32(vmulq_f32(c_vec.val[0], c_vec.val[0]), c_vec.val[1], c_vec.val[1]);
         mag_vec = vsqrtq_f32(mag_sq);
         // Reconstruct
         mag_vec = vmulq_n_f32(mag_vec, scalar);

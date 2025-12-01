@@ -695,9 +695,9 @@ static inline void volk_16ic_x2_dot_prod_16ic_neon_optvma(lv_16sc_t* out,
 #include <arm_neon.h>
 
 static inline void volk_16ic_x2_dot_prod_16ic_neonv8(lv_16sc_t* out,
-                                                      const lv_16sc_t* in_a,
-                                                      const lv_16sc_t* in_b,
-                                                      unsigned int num_points)
+                                                     const lv_16sc_t* in_a,
+                                                     const lv_16sc_t* in_b,
+                                                     unsigned int num_points)
 {
     unsigned int eighth_points = num_points / 8;
     unsigned int number;

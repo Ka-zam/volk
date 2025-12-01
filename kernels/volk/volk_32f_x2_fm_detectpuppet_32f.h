@@ -59,9 +59,9 @@ static inline void volk_32f_x2_fm_detectpuppet_32f_generic(float* outputVector,
 #ifdef LV_HAVE_NEON
 
 static inline void volk_32f_x2_fm_detectpuppet_32f_neon(float* outputVector,
-                                                         const float* inputVector,
-                                                         float* saveValue,
-                                                         unsigned int num_points)
+                                                        const float* inputVector,
+                                                        float* saveValue,
+                                                        unsigned int num_points)
 {
     const float bound = 2.0f;
 
@@ -73,9 +73,9 @@ static inline void volk_32f_x2_fm_detectpuppet_32f_neon(float* outputVector,
 #ifdef LV_HAVE_NEONV8
 
 static inline void volk_32f_x2_fm_detectpuppet_32f_neonv8(float* outputVector,
-                                                           const float* inputVector,
-                                                           float* saveValue,
-                                                           unsigned int num_points)
+                                                          const float* inputVector,
+                                                          float* saveValue,
+                                                          unsigned int num_points)
 {
     const float bound = 2.0f;
 

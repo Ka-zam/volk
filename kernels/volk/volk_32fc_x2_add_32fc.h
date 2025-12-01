@@ -277,9 +277,9 @@ static inline void volk_32fc_x2_add_32fc_u_neon(lv_32fc_t* cVector,
 #include <arm_neon.h>
 
 static inline void volk_32fc_x2_add_32fc_neonv8(lv_32fc_t* cVector,
-                                                 const lv_32fc_t* aVector,
-                                                 const lv_32fc_t* bVector,
-                                                 unsigned int num_points)
+                                                const lv_32fc_t* aVector,
+                                                const lv_32fc_t* bVector,
+                                                unsigned int num_points)
 {
     const unsigned int quarterPoints = num_points / 4;
 

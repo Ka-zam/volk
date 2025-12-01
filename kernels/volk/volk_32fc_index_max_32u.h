@@ -513,8 +513,8 @@ volk_32fc_index_max_32u_neon(uint32_t* target, const lv_32fc_t* src0, uint32_t n
 #include <arm_neon.h>
 
 static inline void volk_32fc_index_max_32u_neonv8(uint32_t* target,
-                                                   const lv_32fc_t* src0,
-                                                   uint32_t num_points)
+                                                  const lv_32fc_t* src0,
+                                                  uint32_t num_points)
 {
     unsigned int number = 0;
     const uint32_t quarter_points = num_points / 4;

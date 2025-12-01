@@ -185,9 +185,9 @@ static inline void volk_32f_x2_interleave_32fc_neon(lv_32fc_t* complexVector,
 #include <arm_neon.h>
 
 static inline void volk_32f_x2_interleave_32fc_neonv8(lv_32fc_t* complexVector,
-                                                       const float* iBuffer,
-                                                       const float* qBuffer,
-                                                       unsigned int num_points)
+                                                      const float* iBuffer,
+                                                      const float* qBuffer,
+                                                      unsigned int num_points)
 {
     const unsigned int eighthPoints = num_points / 8;
 

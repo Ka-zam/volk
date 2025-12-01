@@ -414,9 +414,9 @@ static inline void volk_8i_s32f_convert_32f_neon(float* outputVector,
 #include <arm_neon.h>
 
 static inline void volk_8i_s32f_convert_32f_neonv8(float* outputVector,
-                                                    const int8_t* inputVector,
-                                                    const float scalar,
-                                                    unsigned int num_points)
+                                                   const int8_t* inputVector,
+                                                   const float scalar,
+                                                   unsigned int num_points)
 {
     float* outputVectorPtr = outputVector;
     const int8_t* inputVectorPtr = inputVector;
@@ -435,14 +435,22 @@ static inline void volk_8i_s32f_convert_32f_neonv8(float* outputVector,
         int16x8_t lo1 = vmovl_s8(vget_low_s8(in1));
         int16x8_t hi1 = vmovl_s8(vget_high_s8(in1));
 
-        vst1q_f32(outputVectorPtr, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(lo0))), qiScalar));
-        vst1q_f32(outputVectorPtr + 4, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(lo0))), qiScalar));
-        vst1q_f32(outputVectorPtr + 8, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(hi0))), qiScalar));
-        vst1q_f32(outputVectorPtr + 12, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(hi0))), qiScalar));
-        vst1q_f32(outputVectorPtr + 16, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(lo1))), qiScalar));
-        vst1q_f32(outputVectorPtr + 20, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(lo1))), qiScalar));
-        vst1q_f32(outputVectorPtr + 24, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(hi1))), qiScalar));
-        vst1q_f32(outputVectorPtr + 28, vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(hi1))), qiScalar));
+        vst1q_f32(outputVectorPtr,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(lo0))), qiScalar));
+        vst1q_f32(outputVectorPtr + 4,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(lo0))), qiScalar));
+        vst1q_f32(outputVectorPtr + 8,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(hi0))), qiScalar));
+        vst1q_f32(outputVectorPtr + 12,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(hi0))), qiScalar));
+        vst1q_f32(outputVectorPtr + 16,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(lo1))), qiScalar));
+        vst1q_f32(outputVectorPtr + 20,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(lo1))), qiScalar));
+        vst1q_f32(outputVectorPtr + 24,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(hi1))), qiScalar));
+        vst1q_f32(outputVectorPtr + 28,
+                  vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(hi1))), qiScalar));
 
         inputVectorPtr += 32;
         outputVectorPtr += 32;

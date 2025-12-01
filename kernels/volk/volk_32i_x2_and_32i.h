@@ -221,9 +221,9 @@ static inline void volk_32i_x2_and_32i_neon(int32_t* cVector,
 #include <arm_neon.h>
 
 static inline void volk_32i_x2_and_32i_neonv8(int32_t* cVector,
-                                               const int32_t* aVector,
-                                               const int32_t* bVector,
-                                               unsigned int num_points)
+                                              const int32_t* aVector,
+                                              const int32_t* bVector,
+                                              unsigned int num_points)
 {
     const unsigned int eighthPoints = num_points / 8;
 

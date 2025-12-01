@@ -180,10 +180,10 @@ volk_32fc_x2_s32fc_multiply_conjugate_add_32fc_neon(lv_32fc_t* cVector,
 
 static inline void
 volk_32fc_x2_s32fc_multiply_conjugate_add_32fc_neonv8(lv_32fc_t* cVector,
-                                                       const lv_32fc_t* aVector,
-                                                       const lv_32fc_t* bVector,
-                                                       const lv_32fc_t scalar,
-                                                       unsigned int num_points)
+                                                      const lv_32fc_t* aVector,
+                                                      const lv_32fc_t* bVector,
+                                                      const lv_32fc_t scalar,
+                                                      unsigned int num_points)
 {
     volk_32fc_x2_s32fc_multiply_conjugate_add2_32fc_neonv8(
         cVector, aVector, bVector, &scalar, num_points);

@@ -238,11 +238,12 @@ static inline void volk_16ic_s32f_deinterleave_32f_x2_neon(float* iBuffer,
 #ifdef LV_HAVE_NEONV8
 #include <arm_neon.h>
 
-static inline void volk_16ic_s32f_deinterleave_32f_x2_neonv8(float* iBuffer,
-                                                              float* qBuffer,
-                                                              const lv_16sc_t* complexVector,
-                                                              const float scalar,
-                                                              unsigned int num_points)
+static inline void
+volk_16ic_s32f_deinterleave_32f_x2_neonv8(float* iBuffer,
+                                          float* qBuffer,
+                                          const lv_16sc_t* complexVector,
+                                          const float scalar,
+                                          unsigned int num_points)
 {
     const int16_t* complexVectorPtr = (const int16_t*)complexVector;
     float* iBufferPtr = iBuffer;

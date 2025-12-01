@@ -391,49 +391,6 @@ static inline void volk_32fc_x2_multiply_32fc_neon(lv_32fc_t* cVector,
 #endif /* LV_HAVE_NEON */
 
 
-#ifdef LV_HAVE_NEON
-
-static inline void volk_32fc_x2_multiply_32fc_neon_opttests(lv_32fc_t* cVector,
-                                                            const lv_32fc_t* aVector,
-                                                            const lv_32fc_t* bVector,
-                                                            unsigned int num_points)
-{
-    lv_32fc_t* a_ptr = (lv_32fc_t*)aVector;
-    lv_32fc_t* b_ptr = (lv_32fc_t*)bVector;
-    unsigned int quarter_points = num_points / 4;
-    float32x4x2_t a_val, b_val;
-    float32x4x2_t tmp_imag;
-    unsigned int number = 0;
-
-    for (number = 0; number < quarter_points; ++number) {
-        a_val = vld2q_f32((float*)a_ptr); // a0r|a1r|a2r|a3r || a0i|a1i|a2i|a3i
-        b_val = vld2q_f32((float*)b_ptr); // b0r|b1r|b2r|b3r || b0i|b1i|b2i|b3i
-        __VOLK_PREFETCH(a_ptr + 4);
-        __VOLK_PREFETCH(b_ptr + 4);
-
-        // do the first multiply
-        tmp_imag.val[1] = vmulq_f32(a_val.val[1], b_val.val[0]);
-        tmp_imag.val[0] = vmulq_f32(a_val.val[0], b_val.val[0]);
-
-        // use multiply accumulate/subtract to get result
-        tmp_imag.val[1] = vmlaq_f32(tmp_imag.val[1], a_val.val[0], b_val.val[1]);
-        tmp_imag.val[0] = vmlsq_f32(tmp_imag.val[0], a_val.val[1], b_val.val[1]);
-
-        // store
-        vst2q_f32((float*)cVector, tmp_imag);
-        // increment pointers
-        a_ptr += 4;
-        b_ptr += 4;
-        cVector += 4;
-    }
-
-    for (number = quarter_points * 4; number < num_points; number++) {
-        *cVector++ = (*a_ptr++) * (*b_ptr++);
-    }
-}
-#endif /* LV_HAVE_NEON */
-
-
 #ifdef LV_HAVE_NEONV7
 
 extern void volk_32fc_x2_multiply_32fc_a_neonasm(lv_32fc_t* cVector,
@@ -466,7 +423,8 @@ static inline void volk_32fc_x2_multiply_32fc_neonv8(lv_32fc_t* cVector,
         __VOLK_PREFETCH(a + 8);
         __VOLK_PREFETCH(b + 8);
 
-        /* Complex multiply: (ar + ai*j)(br + bi*j) = (ar*br - ai*bi) + (ar*bi + ai*br)*j */
+        /* Complex multiply: (ar + ai*j)(br + bi*j) = (ar*br - ai*bi) + (ar*bi + ai*br)*j
+         */
         /* Using FMA: real = ar*br - ai*bi, imag = ar*bi + ai*br */
         float32x4x2_t c0, c1;
 

@@ -347,10 +347,10 @@ volk_32fc_x2_s32fc_multiply_conjugate_add2_32fc_neon(lv_32fc_t* cVector,
 
 static inline void
 volk_32fc_x2_s32fc_multiply_conjugate_add2_32fc_neonv8(lv_32fc_t* cVector,
-                                                        const lv_32fc_t* aVector,
-                                                        const lv_32fc_t* bVector,
-                                                        const lv_32fc_t* scalar,
-                                                        unsigned int num_points)
+                                                       const lv_32fc_t* aVector,
+                                                       const lv_32fc_t* bVector,
+                                                       const lv_32fc_t* scalar,
+                                                       unsigned int num_points)
 {
     const lv_32fc_t* bPtr = bVector;
     const lv_32fc_t* aPtr = aVector;
@@ -372,14 +372,12 @@ volk_32fc_x2_s32fc_multiply_conjugate_add2_32fc_neonv8(lv_32fc_t* cVector,
 
         /* Conjugate b: negate imaginary part */
         /* tmp_real = br*sr - (-bi)*si = br*sr + bi*si */
-        tmp_val.val[0] = vfmaq_f32(vmulq_f32(b_val.val[0], scalar_real),
-                                   b_val.val[1],
-                                   scalar_imag);
+        tmp_val.val[0] =
+            vfmaq_f32(vmulq_f32(b_val.val[0], scalar_real), b_val.val[1], scalar_imag);
 
         /* tmp_imag = (-bi)*sr + br*si = br*si - bi*sr */
-        tmp_val.val[1] = vfmsq_f32(vmulq_f32(b_val.val[0], scalar_imag),
-                                   b_val.val[1],
-                                   scalar_real);
+        tmp_val.val[1] =
+            vfmsq_f32(vmulq_f32(b_val.val[0], scalar_imag), b_val.val[1], scalar_real);
 
         /* c = a + tmp */
         c_val.val[0] = vaddq_f32(a_val.val[0], tmp_val.val[0]);

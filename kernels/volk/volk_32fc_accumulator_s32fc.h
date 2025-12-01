@@ -368,8 +368,8 @@ static inline void volk_32fc_accumulator_s32fc_neon(lv_32fc_t* result,
 #include <arm_neon.h>
 
 static inline void volk_32fc_accumulator_s32fc_neonv8(lv_32fc_t* result,
-                                                       const lv_32fc_t* inputBuffer,
-                                                       unsigned int num_points)
+                                                      const lv_32fc_t* inputBuffer,
+                                                      unsigned int num_points)
 {
     const lv_32fc_t* aPtr = inputBuffer;
     unsigned int number = 0;

@@ -368,16 +368,16 @@ static inline void volk_32fc_magnitude_squared_32f_neonv8(float* magnitudeVector
      * Pairwise add: [r0²+i0²,r1²+i1²,r2²+i2²,r3²+i3²]
      */
     while (n >= 4) {
-        float32x4_t v0 = vld1q_f32(in);      /* r0,i0,r1,i1 */
-        float32x4_t v1 = vld1q_f32(in + 4);  /* r2,i2,r3,i3 */
+        float32x4_t v0 = vld1q_f32(in);     /* r0,i0,r1,i1 */
+        float32x4_t v1 = vld1q_f32(in + 4); /* r2,i2,r3,i3 */
         __VOLK_PREFETCH(in + 16);
 
         /* Square all elements */
-        v0 = vmulq_f32(v0, v0);  /* r0²,i0²,r1²,i1² */
-        v1 = vmulq_f32(v1, v1);  /* r2²,i2²,r3²,i3² */
+        v0 = vmulq_f32(v0, v0); /* r0²,i0²,r1²,i1² */
+        v1 = vmulq_f32(v1, v1); /* r2²,i2²,r3²,i3² */
 
         /* Pairwise add: vpaddq adds adjacent pairs */
-        float32x4_t mag = vpaddq_f32(v0, v1);  /* r0²+i0²,r1²+i1²,r2²+i2²,r3²+i3² */
+        float32x4_t mag = vpaddq_f32(v0, v1); /* r0²+i0²,r1²+i1²,r2²+i2²,r3²+i3² */
 
         vst1q_f32(out, mag);
 
@@ -388,7 +388,7 @@ static inline void volk_32fc_magnitude_squared_32f_neonv8(float* magnitudeVector
 
     /* Process remaining 2 complex numbers */
     if (n >= 2) {
-        float32x4_t v0 = vld1q_f32(in);  /* r0,i0,r1,i1 */
+        float32x4_t v0 = vld1q_f32(in); /* r0,i0,r1,i1 */
         v0 = vmulq_f32(v0, v0);
         float32x2_t mag = vpadd_f32(vget_low_f32(v0), vget_high_f32(v0));
         vst1_f32(out, mag);

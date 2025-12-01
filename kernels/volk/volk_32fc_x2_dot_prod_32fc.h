@@ -630,10 +630,10 @@ static inline void volk_32fc_x2_dot_prod_32fc_neonv8(lv_32fc_t* result,
          * real += ar*br - ai*bi
          * imag += ar*bi + ai*br
          */
-        acc0_r = vfmaq_f32(acc0_r, a0.val[0], b0.val[0]);  /* ar*br */
-        acc0_r = vfmsq_f32(acc0_r, a0.val[1], b0.val[1]);  /* - ai*bi */
-        acc0_i = vfmaq_f32(acc0_i, a0.val[0], b0.val[1]);  /* ar*bi */
-        acc0_i = vfmaq_f32(acc0_i, a0.val[1], b0.val[0]);  /* + ai*br */
+        acc0_r = vfmaq_f32(acc0_r, a0.val[0], b0.val[0]); /* ar*br */
+        acc0_r = vfmsq_f32(acc0_r, a0.val[1], b0.val[1]); /* - ai*bi */
+        acc0_i = vfmaq_f32(acc0_i, a0.val[0], b0.val[1]); /* ar*bi */
+        acc0_i = vfmaq_f32(acc0_i, a0.val[1], b0.val[0]); /* + ai*br */
 
         acc1_r = vfmaq_f32(acc1_r, a1.val[0], b1.val[0]);
         acc1_r = vfmsq_f32(acc1_r, a1.val[1], b1.val[1]);

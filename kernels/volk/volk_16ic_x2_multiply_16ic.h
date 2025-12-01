@@ -466,9 +466,9 @@ static inline void volk_16ic_x2_multiply_16ic_neon(lv_16sc_t* out,
 #include <arm_neon.h>
 
 static inline void volk_16ic_x2_multiply_16ic_neonv8(lv_16sc_t* out,
-                                                      const lv_16sc_t* in_a,
-                                                      const lv_16sc_t* in_b,
-                                                      unsigned int num_points)
+                                                     const lv_16sc_t* in_a,
+                                                     const lv_16sc_t* in_b,
+                                                     unsigned int num_points)
 {
     const lv_16sc_t* a_ptr = in_a;
     const lv_16sc_t* b_ptr = in_b;

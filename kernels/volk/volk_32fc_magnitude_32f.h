@@ -444,8 +444,8 @@ static inline void volk_32fc_magnitude_32f_neon(float* magnitudeVector,
 #include <arm_neon.h>
 
 static inline void volk_32fc_magnitude_32f_neonv8(float* magnitudeVector,
-                                                   const lv_32fc_t* complexVector,
-                                                   unsigned int num_points)
+                                                  const lv_32fc_t* complexVector,
+                                                  unsigned int num_points)
 {
     unsigned int number;
     unsigned int quarter_points = num_points / 4;

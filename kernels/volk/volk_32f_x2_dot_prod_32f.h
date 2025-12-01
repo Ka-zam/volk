@@ -905,9 +905,9 @@ static inline void volk_32f_x2_dot_prod_32f_neon(float* result,
 #include <arm_neon.h>
 
 static inline void volk_32f_x2_dot_prod_32f_neonv8(float* result,
-                                                    const float* input,
-                                                    const float* taps,
-                                                    unsigned int num_points)
+                                                   const float* input,
+                                                   const float* taps,
+                                                   unsigned int num_points)
 {
     const unsigned int sixteenthPoints = num_points / 16;
     const float* aPtr = input;

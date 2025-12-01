@@ -249,8 +249,8 @@ static inline void volk_16ic_convert_32fc_neon(lv_32fc_t* outputVector,
 #include <arm_neon.h>
 
 static inline void volk_16ic_convert_32fc_neonv8(lv_32fc_t* outputVector,
-                                                  const lv_16sc_t* inputVector,
-                                                  unsigned int num_points)
+                                                 const lv_16sc_t* inputVector,
+                                                 unsigned int num_points)
 {
     const int16_t* _in = (const int16_t*)inputVector;
     float* _out = (float*)outputVector;

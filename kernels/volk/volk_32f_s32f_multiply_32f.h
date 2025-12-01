@@ -243,9 +243,9 @@ static inline void volk_32f_s32f_multiply_32f_u_neon(float* cVector,
 #include <arm_neon.h>
 
 static inline void volk_32f_s32f_multiply_32f_neonv8(float* cVector,
-                                                      const float* aVector,
-                                                      const float scalar,
-                                                      unsigned int num_points)
+                                                     const float* aVector,
+                                                     const float scalar,
+                                                     unsigned int num_points)
 {
     const unsigned int eighthPoints = num_points / 8;
 

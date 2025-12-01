@@ -422,9 +422,9 @@ static inline void volk_32fc_s32f_atan2_32f_a_avx2(float* outputVector,
 #include <arm_neon.h>
 #include <volk/volk_neon_intrinsics.h>
 static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
-                                                  const lv_32fc_t* complexVector,
-                                                  const float normalizeFactor,
-                                                  unsigned int num_points)
+                                                 const lv_32fc_t* complexVector,
+                                                 const float normalizeFactor,
+                                                 unsigned int num_points)
 {
     const float* in = (float*)complexVector;
     float* out = outputVector;
@@ -452,8 +452,8 @@ static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
         float32x4_t abs_y = vabsq_f32(y);
 
         /* Detect input NaN */
-        uint32x4_t input_nan = vorrq_u32(vmvnq_u32(vceqq_f32(x, x)),
-                                          vmvnq_u32(vceqq_f32(y, y)));
+        uint32x4_t input_nan =
+            vorrq_u32(vmvnq_u32(vceqq_f32(x, x)), vmvnq_u32(vceqq_f32(y, y)));
 
         /* Infinity handling */
         uint32x4_t y_inf = vceqq_f32(abs_y, inf);
@@ -467,18 +467,21 @@ static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
         float32x4_t inf_result = zero;
         /* Both infinite: ±π/4 or ±3π/4 */
         float32x4_t both_inf_r = vbslq_f32(x_pos, pi_4, three_pi_4);
-        both_inf_r = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(both_inf_r),
-                                                     vandq_u32(vreinterpretq_u32_f32(y), sign_mask)));
+        both_inf_r = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(both_inf_r),
+                      vandq_u32(vreinterpretq_u32_f32(y), sign_mask)));
         inf_result = vbslq_f32(both_inf, both_inf_r, inf_result);
         /* y infinite, x finite: ±π/2 */
-        float32x4_t y_inf_r = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2),
-                                                              vandq_u32(vreinterpretq_u32_f32(y), sign_mask)));
+        float32x4_t y_inf_r = vreinterpretq_f32_u32(vorrq_u32(
+            vreinterpretq_u32_f32(pi_2), vandq_u32(vreinterpretq_u32_f32(y), sign_mask)));
         inf_result = vbslq_f32(y_inf_only, y_inf_r, inf_result);
         /* x infinite, y finite: 0 or ±π */
-        float32x4_t x_inf_r = vbslq_f32(x_pos,
+        float32x4_t x_inf_r = vbslq_f32(
+            x_pos,
             vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(y), sign_mask)),
-            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi),
-                                            vandq_u32(vreinterpretq_u32_f32(y), sign_mask))));
+            vreinterpretq_f32_u32(
+                vorrq_u32(vreinterpretq_u32_f32(pi),
+                          vandq_u32(vreinterpretq_u32_f32(y), sign_mask))));
         inf_result = vbslq_f32(x_inf_only, x_inf_r, inf_result);
 
         /* Normal computation */
@@ -493,13 +496,15 @@ static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
 
         float32x4_t result = _varctan_poly_f32(input);
         uint32x4_t input_sign = vandq_u32(vreinterpretq_u32_f32(input), sign_mask);
-        float32x4_t term = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign));
+        float32x4_t term =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign));
         term = vsubq_f32(term, result);
         result = vbslq_f32(swap_mask, term, result);
 
         uint32x4_t x_neg = vcltq_f32(x, zero);
         uint32x4_t y_sign = vandq_u32(vreinterpretq_u32_f32(y), sign_mask);
-        float32x4_t pi_adj = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign));
+        float32x4_t pi_adj =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign));
         result = vbslq_f32(x_neg, vaddq_f32(result, pi_adj), result);
 
         /* Select infinity result or normal result */
@@ -521,9 +526,9 @@ static inline void volk_32fc_s32f_atan2_32f_neon(float* outputVector,
 #include <volk/volk_neon_intrinsics.h>
 /* ARMv8 NEON with FMA, proper infinity/NaN handling, and 2x unrolling */
 static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
-                                                    const lv_32fc_t* complexVector,
-                                                    const float normalizeFactor,
-                                                    unsigned int num_points)
+                                                   const lv_32fc_t* complexVector,
+                                                   const float normalizeFactor,
+                                                   unsigned int num_points)
 {
     const float* in = (float*)complexVector;
     float* out = outputVector;
@@ -554,8 +559,8 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
         float32x4_t abs_y0 = vabsq_f32(y0);
 
         /* Detect input NaN */
-        uint32x4_t input_nan0 = vorrq_u32(vmvnq_u32(vceqq_f32(x0, x0)),
-                                           vmvnq_u32(vceqq_f32(y0, y0)));
+        uint32x4_t input_nan0 =
+            vorrq_u32(vmvnq_u32(vceqq_f32(x0, x0)), vmvnq_u32(vceqq_f32(y0, y0)));
 
         /* Infinity handling */
         uint32x4_t y_inf0 = vceqq_f32(abs_y0, inf);
@@ -568,16 +573,20 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
 
         float32x4_t inf_result0 = zero;
         float32x4_t both_inf_r0 = vbslq_f32(x_pos0, pi_4, three_pi_4);
-        both_inf_r0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(both_inf_r0),
-                                                       vandq_u32(vreinterpretq_u32_f32(y0), sign_mask)));
+        both_inf_r0 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(both_inf_r0),
+                      vandq_u32(vreinterpretq_u32_f32(y0), sign_mask)));
         inf_result0 = vbslq_f32(both_inf0, both_inf_r0, inf_result0);
-        float32x4_t y_inf_r0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2),
-                                                                vandq_u32(vreinterpretq_u32_f32(y0), sign_mask)));
+        float32x4_t y_inf_r0 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(pi_2),
+                      vandq_u32(vreinterpretq_u32_f32(y0), sign_mask)));
         inf_result0 = vbslq_f32(y_inf_only0, y_inf_r0, inf_result0);
-        float32x4_t x_inf_r0 = vbslq_f32(x_pos0,
+        float32x4_t x_inf_r0 = vbslq_f32(
+            x_pos0,
             vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(y0), sign_mask)),
-            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi),
-                                             vandq_u32(vreinterpretq_u32_f32(y0), sign_mask))));
+            vreinterpretq_f32_u32(
+                vorrq_u32(vreinterpretq_u32_f32(pi),
+                          vandq_u32(vreinterpretq_u32_f32(y0), sign_mask))));
         inf_result0 = vbslq_f32(x_inf_only0, x_inf_r0, inf_result0);
 
         /* Normal computation */
@@ -591,13 +600,15 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
 
         float32x4_t result0 = _varctan_poly_neonv8(input0);
         uint32x4_t input_sign0 = vandq_u32(vreinterpretq_u32_f32(input0), sign_mask);
-        float32x4_t term0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign0));
+        float32x4_t term0 =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign0));
         term0 = vsubq_f32(term0, result0);
         result0 = vbslq_f32(swap_mask0, term0, result0);
 
         uint32x4_t x_neg0 = vcltq_f32(x0, zero);
         uint32x4_t y_sign0 = vandq_u32(vreinterpretq_u32_f32(y0), sign_mask);
-        float32x4_t pi_adj0 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign0));
+        float32x4_t pi_adj0 =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign0));
         result0 = vbslq_f32(x_neg0, vaddq_f32(result0, pi_adj0), result0);
 
         result0 = vbslq_f32(any_inf0, inf_result0, result0);
@@ -607,8 +618,8 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
         float32x4_t abs_x1 = vabsq_f32(x1);
         float32x4_t abs_y1 = vabsq_f32(y1);
 
-        uint32x4_t input_nan1 = vorrq_u32(vmvnq_u32(vceqq_f32(x1, x1)),
-                                           vmvnq_u32(vceqq_f32(y1, y1)));
+        uint32x4_t input_nan1 =
+            vorrq_u32(vmvnq_u32(vceqq_f32(x1, x1)), vmvnq_u32(vceqq_f32(y1, y1)));
 
         uint32x4_t y_inf1 = vceqq_f32(abs_y1, inf);
         uint32x4_t x_inf1 = vceqq_f32(abs_x1, inf);
@@ -620,16 +631,20 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
 
         float32x4_t inf_result1 = zero;
         float32x4_t both_inf_r1 = vbslq_f32(x_pos1, pi_4, three_pi_4);
-        both_inf_r1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(both_inf_r1),
-                                                       vandq_u32(vreinterpretq_u32_f32(y1), sign_mask)));
+        both_inf_r1 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(both_inf_r1),
+                      vandq_u32(vreinterpretq_u32_f32(y1), sign_mask)));
         inf_result1 = vbslq_f32(both_inf1, both_inf_r1, inf_result1);
-        float32x4_t y_inf_r1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2),
-                                                                vandq_u32(vreinterpretq_u32_f32(y1), sign_mask)));
+        float32x4_t y_inf_r1 = vreinterpretq_f32_u32(
+            vorrq_u32(vreinterpretq_u32_f32(pi_2),
+                      vandq_u32(vreinterpretq_u32_f32(y1), sign_mask)));
         inf_result1 = vbslq_f32(y_inf_only1, y_inf_r1, inf_result1);
-        float32x4_t x_inf_r1 = vbslq_f32(x_pos1,
+        float32x4_t x_inf_r1 = vbslq_f32(
+            x_pos1,
             vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(y1), sign_mask)),
-            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi),
-                                             vandq_u32(vreinterpretq_u32_f32(y1), sign_mask))));
+            vreinterpretq_f32_u32(
+                vorrq_u32(vreinterpretq_u32_f32(pi),
+                          vandq_u32(vreinterpretq_u32_f32(y1), sign_mask))));
         inf_result1 = vbslq_f32(x_inf_only1, x_inf_r1, inf_result1);
 
         uint32x4_t swap_mask1 = vcgtq_f32(abs_y1, abs_x1);
@@ -642,13 +657,15 @@ static inline void volk_32fc_s32f_atan2_32f_neonv8(float* outputVector,
 
         float32x4_t result1 = _varctan_poly_neonv8(input1);
         uint32x4_t input_sign1 = vandq_u32(vreinterpretq_u32_f32(input1), sign_mask);
-        float32x4_t term1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign1));
+        float32x4_t term1 =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi_2), input_sign1));
         term1 = vsubq_f32(term1, result1);
         result1 = vbslq_f32(swap_mask1, term1, result1);
 
         uint32x4_t x_neg1 = vcltq_f32(x1, zero);
         uint32x4_t y_sign1 = vandq_u32(vreinterpretq_u32_f32(y1), sign_mask);
-        float32x4_t pi_adj1 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign1));
+        float32x4_t pi_adj1 =
+            vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(pi), y_sign1));
         result1 = vbslq_f32(x_neg1, vaddq_f32(result1, pi_adj1), result1);
 
         result1 = vbslq_f32(any_inf1, inf_result1, result1);

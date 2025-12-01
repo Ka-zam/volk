@@ -320,8 +320,8 @@ static inline void volk_8i_convert_16i_neon(int16_t* outputVector,
 #include <arm_neon.h>
 
 static inline void volk_8i_convert_16i_neonv8(int16_t* outputVector,
-                                               const int8_t* inputVector,
-                                               unsigned int num_points)
+                                              const int8_t* inputVector,
+                                              unsigned int num_points)
 {
     int16_t* outputVectorPtr = outputVector;
     const int8_t* inputVectorPtr = inputVector;

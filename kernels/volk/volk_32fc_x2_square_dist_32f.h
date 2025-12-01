@@ -268,9 +268,9 @@ static inline void volk_32fc_x2_square_dist_32f_neon(float* target,
 #include <arm_neon.h>
 
 static inline void volk_32fc_x2_square_dist_32f_neonv8(float* target,
-                                                        const lv_32fc_t* src0,
-                                                        const lv_32fc_t* points,
-                                                        unsigned int num_points)
+                                                       const lv_32fc_t* src0,
+                                                       const lv_32fc_t* points,
+                                                       unsigned int num_points)
 {
     const unsigned int quarter_points = num_points / 4;
     unsigned int number;

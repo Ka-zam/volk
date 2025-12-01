@@ -291,9 +291,9 @@ static inline void volk_32fc_x2_multiply_conjugate_32fc_neon(lv_32fc_t* cVector,
 #include <arm_neon.h>
 
 static inline void volk_32fc_x2_multiply_conjugate_32fc_neonv8(lv_32fc_t* cVector,
-                                                                const lv_32fc_t* aVector,
-                                                                const lv_32fc_t* bVector,
-                                                                unsigned int num_points)
+                                                               const lv_32fc_t* aVector,
+                                                               const lv_32fc_t* bVector,
+                                                               unsigned int num_points)
 {
     const lv_32fc_t* a_ptr = aVector;
     const lv_32fc_t* b_ptr = bVector;
@@ -309,14 +309,12 @@ static inline void volk_32fc_x2_multiply_conjugate_32fc_neonv8(lv_32fc_t* cVecto
 
         /* Conjugate b: negate imaginary part */
         /* real = ar*br + ai*bi (using FMA) */
-        c_val.val[0] = vfmaq_f32(vmulq_f32(a_val.val[0], b_val.val[0]),
-                                 a_val.val[1],
-                                 b_val.val[1]);
+        c_val.val[0] =
+            vfmaq_f32(vmulq_f32(a_val.val[0], b_val.val[0]), a_val.val[1], b_val.val[1]);
 
         /* imag = ai*br - ar*bi (using FMS) */
-        c_val.val[1] = vfmsq_f32(vmulq_f32(a_val.val[1], b_val.val[0]),
-                                 a_val.val[0],
-                                 b_val.val[1]);
+        c_val.val[1] =
+            vfmsq_f32(vmulq_f32(a_val.val[1], b_val.val[0]), a_val.val[0], b_val.val[1]);
 
         vst2q_f32((float*)cVector, c_val);
 

@@ -209,10 +209,10 @@ static inline void volk_32fc_s32fc_x2_rotator2_32fc_neon(lv_32fc_t* outVector,
 #include <arm_neon.h>
 
 static inline void volk_32fc_s32fc_x2_rotator2_32fc_neonv8(lv_32fc_t* outVector,
-                                                            const lv_32fc_t* inVector,
-                                                            const lv_32fc_t* phase_inc,
-                                                            lv_32fc_t* phase,
-                                                            unsigned int num_points)
+                                                           const lv_32fc_t* inVector,
+                                                           const lv_32fc_t* phase_inc,
+                                                           lv_32fc_t* phase,
+                                                           unsigned int num_points)
 {
     lv_32fc_t* outputVectorPtr = outVector;
     const lv_32fc_t* inputVectorPtr = inVector;
@@ -289,14 +289,12 @@ static inline void volk_32fc_s32fc_x2_rotator2_32fc_neonv8(lv_32fc_t* outVector,
                                       phase_vec.val[0]);
 
         // Increase phase using FMA
-        float32x4_t new_phase_re =
-            vfmsq_f32(vmulq_f32(phase_vec.val[0], incr_vec.val[0]),
-                      phase_vec.val[1],
-                      incr_vec.val[1]);
-        float32x4_t new_phase_im =
-            vfmaq_f32(vmulq_f32(phase_vec.val[0], incr_vec.val[1]),
-                      phase_vec.val[1],
-                      incr_vec.val[0]);
+        float32x4_t new_phase_re = vfmsq_f32(vmulq_f32(phase_vec.val[0], incr_vec.val[0]),
+                                             phase_vec.val[1],
+                                             incr_vec.val[1]);
+        float32x4_t new_phase_im = vfmaq_f32(vmulq_f32(phase_vec.val[0], incr_vec.val[1]),
+                                             phase_vec.val[1],
+                                             incr_vec.val[0]);
         phase_vec.val[0] = new_phase_re;
         phase_vec.val[1] = new_phase_im;
 

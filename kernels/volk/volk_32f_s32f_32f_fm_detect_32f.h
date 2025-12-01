@@ -250,10 +250,10 @@ static inline void volk_32f_s32f_32f_fm_detect_32f_generic(float* outputVector,
 #include <arm_neon.h>
 
 static inline void volk_32f_s32f_32f_fm_detect_32f_neon(float* outputVector,
-                                                         const float* inputVector,
-                                                         const float bound,
-                                                         float* saveValue,
-                                                         unsigned int num_points)
+                                                        const float* inputVector,
+                                                        const float bound,
+                                                        float* saveValue,
+                                                        unsigned int num_points)
 {
     if (num_points < 1) {
         return;

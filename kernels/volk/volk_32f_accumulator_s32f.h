@@ -289,8 +289,8 @@ static inline void volk_32f_accumulator_s32f_u_sse(float* result,
 #include <arm_neon.h>
 
 static inline void volk_32f_accumulator_s32f_neon(float* result,
-                                                   const float* inputBuffer,
-                                                   unsigned int num_points)
+                                                  const float* inputBuffer,
+                                                  unsigned int num_points)
 {
     float returnValue = 0;
     unsigned int number = 0;
@@ -307,7 +307,8 @@ static inline void volk_32f_accumulator_s32f_neon(float* result,
     }
 
     // Horizontal sum - manual for NEON (ARMv7 compatible)
-    float32x2_t sum_pair = vadd_f32(vget_low_f32(accumulator), vget_high_f32(accumulator));
+    float32x2_t sum_pair =
+        vadd_f32(vget_low_f32(accumulator), vget_high_f32(accumulator));
     sum_pair = vpadd_f32(sum_pair, sum_pair);
     returnValue = vget_lane_f32(sum_pair, 0);
 
@@ -324,8 +325,8 @@ static inline void volk_32f_accumulator_s32f_neon(float* result,
 #include <arm_neon.h>
 
 static inline void volk_32f_accumulator_s32f_neonv8(float* result,
-                                                     const float* inputBuffer,
-                                                     unsigned int num_points)
+                                                    const float* inputBuffer,
+                                                    unsigned int num_points)
 {
     float returnValue = 0;
     unsigned int number = 0;

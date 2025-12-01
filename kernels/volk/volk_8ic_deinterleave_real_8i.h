@@ -295,8 +295,8 @@ static inline void volk_8ic_deinterleave_real_8i_neon(int8_t* iBuffer,
 #include <arm_neon.h>
 
 static inline void volk_8ic_deinterleave_real_8i_neonv8(int8_t* iBuffer,
-                                                         const lv_8sc_t* complexVector,
-                                                         unsigned int num_points)
+                                                        const lv_8sc_t* complexVector,
+                                                        unsigned int num_points)
 {
     const unsigned int thirtysecondPoints = num_points / 32;
 

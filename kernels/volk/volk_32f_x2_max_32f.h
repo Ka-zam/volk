@@ -212,9 +212,9 @@ static inline void volk_32f_x2_max_32f_neon(float* cVector,
 #include <arm_neon.h>
 
 static inline void volk_32f_x2_max_32f_neonv8(float* cVector,
-                                               const float* aVector,
-                                               const float* bVector,
-                                               unsigned int num_points)
+                                              const float* aVector,
+                                              const float* bVector,
+                                              unsigned int num_points)
 {
     const unsigned int eighthPoints = num_points / 8;
 
