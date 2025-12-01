@@ -648,6 +648,7 @@ volk_32f_asin_32f_neon(float* bVector, const float* aVector, unsigned int num_po
         aVal = vld1q_f32(aPtr);
 
         // Compute x / sqrt((1+x)*(1-x)) using reciprocal estimate
+        // For |x| > 1, this produces NaN (matching generic behavior)
         float32x4_t one_plus = vaddq_f32(fones, aVal);
         float32x4_t one_minus = vsubq_f32(fones, aVal);
         float32x4_t sqrt_arg = vmulq_f32(one_plus, one_minus);
@@ -660,18 +661,18 @@ volk_32f_asin_32f_neon(float* bVector, const float* aVector, unsigned int num_po
         // Reciprocal of sqrt_val
         float32x4_t recip = vrecpeq_f32(sqrt_val);
         recip = vmulq_f32(recip, vrecpsq_f32(sqrt_val, recip));
-        aVal = vmulq_f32(aVal, recip);
+        float32x4_t tanVal = vmulq_f32(aVal, recip);
 
-        z = aVal;
+        z = tanVal;
         // z = abs(z)
         condition = vcltq_f32(z, fzeroes);
         z = vbslq_f32(condition, vnegq_f32(z), z);
 
-        // x = z if z < 1, else x = 1/z
+        // x = 1/z if z < 1, else x = z (matching SSE logic)
         condition = vcltq_f32(z, fones);
         float32x4_t z_recip = vrecpeq_f32(z);
         z_recip = vmulq_f32(z_recip, vrecpsq_f32(z, z_recip));
-        x = vbslq_f32(condition, z, z_recip);
+        x = vbslq_f32(condition, z_recip, z);
 
         // Two iterations: x = x + sqrt(1 + x*x)
         for (i = 0; i < 2; i++) {
@@ -704,8 +705,8 @@ volk_32f_asin_32f_neon(float* bVector, const float* aVector, unsigned int num_po
 
         arcsine = y;
 
-        // If aVal < 0, arcsine = -arcsine
-        condition = vcltq_f32(aVal, fzeroes);
+        // If tanVal < 0, arcsine = -arcsine
+        condition = vcltq_f32(tanVal, fzeroes);
         arcsine = vbslq_f32(condition, vnegq_f32(arcsine), arcsine);
 
         vst1q_f32(bPtr, arcsine);
@@ -745,19 +746,20 @@ volk_32f_asin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_
         aVal = vld1q_f32(aPtr);
 
         // Compute x / sqrt((1+x)*(1-x))
+        // For |x| > 1, this produces NaN (matching generic behavior)
         float32x4_t one_plus = vaddq_f32(fones, aVal);
         float32x4_t one_minus = vsubq_f32(fones, aVal);
         float32x4_t sqrt_val = vsqrtq_f32(vmulq_f32(one_plus, one_minus));
-        aVal = vdivq_f32(aVal, sqrt_val);
+        float32x4_t tanVal = vdivq_f32(aVal, sqrt_val);
 
-        z = aVal;
+        z = tanVal;
         // z = abs(z)
         z = vabsq_f32(z);
 
-        // x = z if z < 1, else x = 1/z
+        // x = 1/z if z < 1, else x = z (matching SSE logic)
         uint32x4_t z_lt_one = vcltq_f32(z, fones);
         float32x4_t z_recip = vdivq_f32(fones, z);
-        x = vbslq_f32(z_lt_one, z, z_recip);
+        x = vbslq_f32(z_lt_one, z_recip, z);
 
         // Two iterations: x = x + sqrt(1 + x*x)
         for (i = 0; i < 2; i++) {
@@ -783,9 +785,9 @@ volk_32f_asin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_
 
         arcsine = y;
 
-        // If aVal < 0, arcsine = -arcsine
-        uint32x4_t aVal_neg = vcltq_f32(aVal, fzeroes);
-        arcsine = vbslq_f32(aVal_neg, vnegq_f32(arcsine), arcsine);
+        // If tanVal < 0, arcsine = -arcsine
+        uint32x4_t tanVal_neg = vcltq_f32(tanVal, fzeroes);
+        arcsine = vbslq_f32(tanVal_neg, vnegq_f32(arcsine), arcsine);
 
         vst1q_f32(bPtr, arcsine);
         aPtr += 4;
