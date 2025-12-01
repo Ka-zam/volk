@@ -901,6 +901,64 @@ static inline void volk_32f_x2_dot_prod_32f_neon(float* result,
 
 #endif /* LV_HAVE_NEON */
 
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+
+static inline void volk_32f_x2_dot_prod_32f_neonv8(float* result,
+                                                    const float* input,
+                                                    const float* taps,
+                                                    unsigned int num_points)
+{
+    const unsigned int sixteenthPoints = num_points / 16;
+    const float* aPtr = input;
+    const float* bPtr = taps;
+
+    /* Use 4 independent accumulators for better pipelining with FMA */
+    float32x4_t acc0 = vdupq_n_f32(0);
+    float32x4_t acc1 = vdupq_n_f32(0);
+    float32x4_t acc2 = vdupq_n_f32(0);
+    float32x4_t acc3 = vdupq_n_f32(0);
+
+    for (unsigned int number = 0; number < sixteenthPoints; number++) {
+        float32x4_t a0 = vld1q_f32(aPtr);
+        float32x4_t a1 = vld1q_f32(aPtr + 4);
+        float32x4_t a2 = vld1q_f32(aPtr + 8);
+        float32x4_t a3 = vld1q_f32(aPtr + 12);
+
+        float32x4_t b0 = vld1q_f32(bPtr);
+        float32x4_t b1 = vld1q_f32(bPtr + 4);
+        float32x4_t b2 = vld1q_f32(bPtr + 8);
+        float32x4_t b3 = vld1q_f32(bPtr + 12);
+        __VOLK_PREFETCH(aPtr + 32);
+        __VOLK_PREFETCH(bPtr + 32);
+
+        /* Use FMA for accumulate */
+        acc0 = vfmaq_f32(acc0, a0, b0);
+        acc1 = vfmaq_f32(acc1, a1, b1);
+        acc2 = vfmaq_f32(acc2, a2, b2);
+        acc3 = vfmaq_f32(acc3, a3, b3);
+
+        aPtr += 16;
+        bPtr += 16;
+    }
+
+    /* Combine accumulators */
+    acc0 = vaddq_f32(acc0, acc1);
+    acc2 = vaddq_f32(acc2, acc3);
+    acc0 = vaddq_f32(acc0, acc2);
+
+    /* Horizontal sum */
+    float dotProduct = vaddvq_f32(acc0);
+
+    /* Handle remainder */
+    for (unsigned int number = sixteenthPoints * 16; number < num_points; number++) {
+        dotProduct += (*aPtr++) * (*bPtr++);
+    }
+
+    *result = dotProduct;
+}
+#endif /* LV_HAVE_NEONV8 */
+
 #ifdef LV_HAVE_NEONV7
 extern void volk_32f_x2_dot_prod_32f_a_neonasm(float* cVector,
                                                const float* aVector,
