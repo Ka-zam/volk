@@ -164,6 +164,56 @@ static inline void volk_32fc_magnitude_32f_u_avx(float* magnitudeVector,
 }
 #endif /* LV_HAVE_AVX */
 
+#if LV_HAVE_AVX2 && LV_HAVE_FMA
+#include <immintrin.h>
+
+static inline void volk_32fc_magnitude_32f_u_avx2_fma(float* magnitudeVector,
+                                                      const lv_32fc_t* complexVector,
+                                                      unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int eighthPoints = num_points / 8;
+
+    const float* complexVectorPtr = (float*)complexVector;
+    float* magnitudeVectorPtr = magnitudeVector;
+
+    __m256 cplxValue1, cplxValue2;
+    __m256 iValue, qValue, result;
+
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex numbers (16 floats): r0,i0,r1,i1,...,r7,i7
+        cplxValue1 = _mm256_loadu_ps(complexVectorPtr);
+        cplxValue2 = _mm256_loadu_ps(complexVectorPtr + 8);
+
+        // Deinterleave real and imaginary parts using AVX2 permutevar
+        __m256 tmp1 = _mm256_unpacklo_ps(cplxValue1, cplxValue2);
+        __m256 tmp2 = _mm256_unpackhi_ps(cplxValue1, cplxValue2);
+        __m256 tmp3 = _mm256_unpacklo_ps(tmp1, tmp2);
+        __m256 tmp4 = _mm256_unpackhi_ps(tmp1, tmp2);
+        iValue = _mm256_permutevar8x32_ps(tmp3, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+        qValue = _mm256_permutevar8x32_ps(tmp4, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+
+        // Use FMA for i*i + q*q
+        result = _mm256_fmadd_ps(iValue, iValue, _mm256_mul_ps(qValue, qValue));
+
+        // Square root
+        result = _mm256_sqrt_ps(result);
+
+        _mm256_storeu_ps(magnitudeVectorPtr, result);
+
+        complexVectorPtr += 16;
+        magnitudeVectorPtr += 8;
+    }
+
+    number = eighthPoints * 8;
+    for (; number < num_points; number++) {
+        float val1Real = *complexVectorPtr++;
+        float val1Imag = *complexVectorPtr++;
+        *magnitudeVectorPtr++ = sqrtf((val1Real * val1Real) + (val1Imag * val1Imag));
+    }
+}
+#endif /* LV_HAVE_AVX2 && LV_HAVE_FMA */
+
 #ifdef LV_HAVE_SSE3
 #include <pmmintrin.h>
 #include <volk/volk_sse3_intrinsics.h>
@@ -330,6 +380,56 @@ static inline void volk_32fc_magnitude_32f_a_avx(float* magnitudeVector,
     }
 }
 #endif /* LV_HAVE_AVX */
+
+#if LV_HAVE_AVX2 && LV_HAVE_FMA
+#include <immintrin.h>
+
+static inline void volk_32fc_magnitude_32f_a_avx2_fma(float* magnitudeVector,
+                                                      const lv_32fc_t* complexVector,
+                                                      unsigned int num_points)
+{
+    unsigned int number = 0;
+    const unsigned int eighthPoints = num_points / 8;
+
+    const float* complexVectorPtr = (float*)complexVector;
+    float* magnitudeVectorPtr = magnitudeVector;
+
+    __m256 cplxValue1, cplxValue2;
+    __m256 iValue, qValue, result;
+
+    for (; number < eighthPoints; number++) {
+        // Load 8 complex numbers (16 floats): r0,i0,r1,i1,...,r7,i7
+        cplxValue1 = _mm256_load_ps(complexVectorPtr);
+        cplxValue2 = _mm256_load_ps(complexVectorPtr + 8);
+
+        // Deinterleave real and imaginary parts using AVX2 permutevar
+        __m256 tmp1 = _mm256_unpacklo_ps(cplxValue1, cplxValue2);
+        __m256 tmp2 = _mm256_unpackhi_ps(cplxValue1, cplxValue2);
+        __m256 tmp3 = _mm256_unpacklo_ps(tmp1, tmp2);
+        __m256 tmp4 = _mm256_unpackhi_ps(tmp1, tmp2);
+        iValue = _mm256_permutevar8x32_ps(tmp3, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+        qValue = _mm256_permutevar8x32_ps(tmp4, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7));
+
+        // Use FMA for i*i + q*q
+        result = _mm256_fmadd_ps(iValue, iValue, _mm256_mul_ps(qValue, qValue));
+
+        // Square root
+        result = _mm256_sqrt_ps(result);
+
+        _mm256_store_ps(magnitudeVectorPtr, result);
+
+        complexVectorPtr += 16;
+        magnitudeVectorPtr += 8;
+    }
+
+    number = eighthPoints * 8;
+    for (; number < num_points; number++) {
+        float val1Real = *complexVectorPtr++;
+        float val1Imag = *complexVectorPtr++;
+        *magnitudeVectorPtr++ = sqrtf((val1Real * val1Real) + (val1Imag * val1Imag));
+    }
+}
+#endif /* LV_HAVE_AVX2 && LV_HAVE_FMA */
 
 #ifdef LV_HAVE_SSE3
 #include <pmmintrin.h>

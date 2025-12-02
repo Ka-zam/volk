@@ -358,6 +358,126 @@ static inline void volk_32fc_x2_conjugate_dot_prod_32fc_a_avx(lv_32fc_t* result,
 }
 #endif /* LV_HAVE_AVX */
 
+#if LV_HAVE_AVX && LV_HAVE_FMA
+
+#include <immintrin.h>
+
+static inline void volk_32fc_x2_conjugate_dot_prod_32fc_u_avx_fma(lv_32fc_t* result,
+                                                                   const lv_32fc_t* input,
+                                                                   const lv_32fc_t* taps,
+                                                                   unsigned int num_points)
+{
+    // Partial sums for indices i, i+1, i+2 and i+3.
+    __m256 sum_a_mult_b_real = _mm256_setzero_ps();
+    __m256 sum_a_mult_b_imag = _mm256_setzero_ps();
+
+    // Sign mask for emulating addsub: negate even indices (real parts)
+    const __m256 sign_mask = _mm256_castsi256_ps(
+        _mm256_set_epi32(0, 0x80000000, 0, 0x80000000, 0, 0x80000000, 0, 0x80000000));
+
+    for (long unsigned i = 0; i < (num_points & ~3u); i += 4) {
+        /* Four complex elements a time are processed.
+         * (ar + j⋅ai)*conj(br + j⋅bi) =
+         * ar⋅br + ai⋅bi + j⋅(ai⋅br − ar⋅bi)
+         */
+
+        /* Load input and taps, split and duplicate real und imaginary parts of taps. */
+        __m256 a = _mm256_loadu_ps((const float*)&input[i]);
+        __m256 b = _mm256_loadu_ps((const float*)&taps[i]);
+        __m256 b_real = _mm256_moveldup_ps(b);
+        __m256 b_imag = _mm256_movehdup_ps(b);
+
+        // Accumulate a * b_real using FMA
+        sum_a_mult_b_real = _mm256_fmadd_ps(a, b_real, sum_a_mult_b_real);
+
+        // Emulate addsub: compute a*b_imag then negate even indices
+        __m256 mult_imag = _mm256_mul_ps(a, b_imag);
+        mult_imag = _mm256_xor_ps(mult_imag, sign_mask);
+        sum_a_mult_b_imag = _mm256_add_ps(sum_a_mult_b_imag, mult_imag);
+    }
+
+    // Swap position of −ar⋅bi and ai⋅bi.
+    sum_a_mult_b_imag = _mm256_permute_ps(sum_a_mult_b_imag, _MM_SHUFFLE(2, 3, 0, 1));
+    // | ai⋅br + ai⋅bi | ai⋅br − ar⋅bi |, sum contains four such partial sums.
+    __m256 sum = _mm256_add_ps(sum_a_mult_b_real, sum_a_mult_b_imag);
+    /* Sum the four partial sums */
+    sum = _mm256_add_ps(sum, _mm256_permute2f128_ps(sum, sum, 0x01));
+    sum = _mm256_add_ps(sum, _mm256_permute_ps(sum, _MM_SHUFFLE(1, 0, 3, 2)));
+    // Store result.
+    __m128 lower = _mm256_extractf128_ps(sum, 0);
+    _mm_storel_pi((__m64*)result, lower);
+
+    // Handle the last elements if num_points mod 4 is bigger than 0.
+    for (long unsigned i = num_points & ~3u; i < num_points; ++i) {
+        *result += lv_cmake(lv_creal(input[i]) * lv_creal(taps[i]) +
+                                lv_cimag(input[i]) * lv_cimag(taps[i]),
+                            lv_cimag(input[i]) * lv_creal(taps[i]) -
+                                lv_creal(input[i]) * lv_cimag(taps[i]));
+    }
+}
+
+#endif /* LV_HAVE_AVX && LV_HAVE_FMA */
+
+#if LV_HAVE_AVX && LV_HAVE_FMA
+
+#include <immintrin.h>
+
+static inline void volk_32fc_x2_conjugate_dot_prod_32fc_a_avx_fma(lv_32fc_t* result,
+                                                                   const lv_32fc_t* input,
+                                                                   const lv_32fc_t* taps,
+                                                                   unsigned int num_points)
+{
+    // Partial sums for indices i, i+1, i+2 and i+3.
+    __m256 sum_a_mult_b_real = _mm256_setzero_ps();
+    __m256 sum_a_mult_b_imag = _mm256_setzero_ps();
+
+    // Sign mask for emulating addsub: negate even indices (real parts)
+    const __m256 sign_mask = _mm256_castsi256_ps(
+        _mm256_set_epi32(0, 0x80000000, 0, 0x80000000, 0, 0x80000000, 0, 0x80000000));
+
+    for (long unsigned i = 0; i < (num_points & ~3u); i += 4) {
+        /* Four complex elements a time are processed.
+         * (ar + j⋅ai)*conj(br + j⋅bi) =
+         * ar⋅br + ai⋅bi + j⋅(ai⋅br − ar⋅bi)
+         */
+
+        /* Load input and taps (aligned), split and duplicate real und imaginary parts. */
+        __m256 a = _mm256_load_ps((const float*)&input[i]);
+        __m256 b = _mm256_load_ps((const float*)&taps[i]);
+        __m256 b_real = _mm256_moveldup_ps(b);
+        __m256 b_imag = _mm256_movehdup_ps(b);
+
+        // Accumulate a * b_real using FMA
+        sum_a_mult_b_real = _mm256_fmadd_ps(a, b_real, sum_a_mult_b_real);
+
+        // Emulate addsub: compute a*b_imag then negate even indices
+        __m256 mult_imag = _mm256_mul_ps(a, b_imag);
+        mult_imag = _mm256_xor_ps(mult_imag, sign_mask);
+        sum_a_mult_b_imag = _mm256_add_ps(sum_a_mult_b_imag, mult_imag);
+    }
+
+    // Swap position of −ar⋅bi and ai⋅bi.
+    sum_a_mult_b_imag = _mm256_permute_ps(sum_a_mult_b_imag, _MM_SHUFFLE(2, 3, 0, 1));
+    // | ai⋅br + ai⋅bi | ai⋅br − ar⋅bi |, sum contains four such partial sums.
+    __m256 sum = _mm256_add_ps(sum_a_mult_b_real, sum_a_mult_b_imag);
+    /* Sum the four partial sums */
+    sum = _mm256_add_ps(sum, _mm256_permute2f128_ps(sum, sum, 0x01));
+    sum = _mm256_add_ps(sum, _mm256_permute_ps(sum, _MM_SHUFFLE(1, 0, 3, 2)));
+    // Store result.
+    __m128 lower = _mm256_extractf128_ps(sum, 0);
+    _mm_storel_pi((__m64*)result, lower);
+
+    // Handle the last elements if num_points mod 4 is bigger than 0.
+    for (long unsigned i = num_points & ~3u; i < num_points; ++i) {
+        *result += lv_cmake(lv_creal(input[i]) * lv_creal(taps[i]) +
+                                lv_cimag(input[i]) * lv_cimag(taps[i]),
+                            lv_cimag(input[i]) * lv_creal(taps[i]) -
+                                lv_creal(input[i]) * lv_cimag(taps[i]));
+    }
+}
+
+#endif /* LV_HAVE_AVX && LV_HAVE_FMA */
+
 #if LV_HAVE_AVX512F && LV_HAVE_AVX512DQ
 
 #include <immintrin.h>
