@@ -509,6 +509,71 @@ volk_32fc_index_max_32u_neon(uint32_t* target, const lv_32fc_t* src0, uint32_t n
 
 #endif /*LV_HAVE_NEON*/
 
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+
+static inline void volk_32fc_index_max_32u_neonv8(uint32_t* target,
+                                                  const lv_32fc_t* src0,
+                                                  uint32_t num_points)
+{
+    unsigned int number = 0;
+    const uint32_t quarter_points = num_points / 4;
+    const lv_32fc_t* src0Ptr = src0;
+
+    uint32_t indices[4] = { 0, 1, 2, 3 };
+    const uint32x4_t vec_indices_incr = vdupq_n_u32(4);
+    uint32x4_t vec_indices = vld1q_u32(indices);
+    uint32x4_t vec_max_indices = vec_indices;
+
+    if (num_points) {
+        float max = FLT_MIN;
+        uint32_t index = 0;
+
+        float32x4_t vec_max = vdupq_n_f32(FLT_MIN);
+
+        for (; number < quarter_points; number++) {
+            // Load complex and compute magnitude squared using FMA
+            float32x4x2_t complex_vec = vld2q_f32((float*)src0Ptr);
+            __VOLK_PREFETCH(src0Ptr + 4);
+            const float32x4_t vec_mag2 =
+                vfmaq_f32(vmulq_f32(complex_vec.val[0], complex_vec.val[0]),
+                          complex_vec.val[1],
+                          complex_vec.val[1]);
+            src0Ptr += 4;
+            // a > b?
+            const uint32x4_t gt_mask = vcgtq_f32(vec_mag2, vec_max);
+            vec_max = vbslq_f32(gt_mask, vec_mag2, vec_max);
+            vec_max_indices = vbslq_u32(gt_mask, vec_indices, vec_max_indices);
+            vec_indices = vaddq_u32(vec_indices, vec_indices_incr);
+        }
+        uint32_t tmp_max_indices[4];
+        float tmp_max[4];
+        vst1q_u32(tmp_max_indices, vec_max_indices);
+        vst1q_f32(tmp_max, vec_max);
+
+        for (int i = 0; i < 4; i++) {
+            if (tmp_max[i] > max) {
+                max = tmp_max[i];
+                index = tmp_max_indices[i];
+            }
+        }
+
+        // Deal with the rest
+        for (number = quarter_points * 4; number < num_points; number++) {
+            const float re = lv_creal(*src0Ptr);
+            const float im = lv_cimag(*src0Ptr);
+            const float sq_dist = re * re + im * im;
+            if (sq_dist > max) {
+                max = sq_dist;
+                index = number;
+            }
+            src0Ptr++;
+        }
+        *target = index;
+    }
+}
+#endif /*LV_HAVE_NEONV8*/
+
 #ifdef LV_HAVE_RVV
 #include <float.h>
 #include <riscv_vector.h>
@@ -535,8 +600,14 @@ volk_32fc_index_max_32u_rvv(uint32_t* target, const lv_32fc_t* src0, uint32_t nu
     float max = __riscv_vfmv_f(__riscv_vfredmax(RISCV_SHRINK4(vfmax, f, 32, vmax),
                                                 __riscv_vfmv_v_f_f32m1(0, 1),
                                                 __riscv_vsetvlmax_e32m1()));
+    // Find lanes with max value, set others to UINT32_MAX
     vbool8_t m = __riscv_vmfeq(vmax, max, vl);
-    *target = __riscv_vmv_x(__riscv_vslidedown(vmaxi, __riscv_vfirst(m, vl), vl));
+    vuint32m4_t idx_masked =
+        __riscv_vmerge(__riscv_vmv_v_x_u32m4(UINT32_MAX, vl), vmaxi, m, vl);
+    // Find minimum index among lanes with max value
+    *target = __riscv_vmv_x(__riscv_vredminu(RISCV_SHRINK4(vminu, u, 32, idx_masked),
+                                             __riscv_vmv_v_x_u32m1(UINT32_MAX, 1),
+                                             __riscv_vsetvlmax_e32m1()));
 }
 #endif /*LV_HAVE_RVV*/
 
@@ -566,8 +637,14 @@ static inline void volk_32fc_index_max_32u_rvvseg(uint32_t* target,
     float max = __riscv_vfmv_f(__riscv_vfredmax(RISCV_SHRINK4(vfmax, f, 32, vmax),
                                                 __riscv_vfmv_v_f_f32m1(0, 1),
                                                 __riscv_vsetvlmax_e32m1()));
+    // Find lanes with max value, set others to UINT32_MAX
     vbool8_t m = __riscv_vmfeq(vmax, max, vl);
-    *target = __riscv_vmv_x(__riscv_vslidedown(vmaxi, __riscv_vfirst(m, vl), vl));
+    vuint32m4_t idx_masked =
+        __riscv_vmerge(__riscv_vmv_v_x_u32m4(UINT32_MAX, vl), vmaxi, m, vl);
+    // Find minimum index among lanes with max value
+    *target = __riscv_vmv_x(__riscv_vredminu(RISCV_SHRINK4(vminu, u, 32, idx_masked),
+                                             __riscv_vmv_v_x_u32m1(UINT32_MAX, 1),
+                                             __riscv_vsetvlmax_e32m1()));
 }
 #endif /*LV_HAVE_RVVSEG*/
 

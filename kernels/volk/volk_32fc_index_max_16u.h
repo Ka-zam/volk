@@ -468,6 +468,70 @@ static inline void volk_32fc_index_max_16u_u_avx2_variant_1(uint16_t* target,
 
 #endif /*LV_HAVE_AVX2*/
 
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+
+static inline void
+volk_32fc_index_max_16u_neon(uint16_t* target, const lv_32fc_t* src0, uint32_t num_points)
+{
+    num_points = (num_points > USHRT_MAX) ? USHRT_MAX : num_points;
+
+    uint32_t number = 0;
+    const uint32_t quarterPoints = num_points / 4;
+
+    const float* inputPtr = (const float*)src0;
+
+    float32x4_t indexIncrementValues = vdupq_n_f32(4.0f);
+    float32x4_t currentIndexes = { 0.0f, 1.0f, 2.0f, 3.0f };
+
+    float max = 0.0f;
+    float index = 0;
+    float32x4_t maxMagSquared = vdupq_n_f32(0.0f);
+    float32x4_t maxValuesIndex = vdupq_n_f32(0.0f);
+
+    for (; number < quarterPoints; number++) {
+        float32x4x2_t input = vld2q_f32(inputPtr);
+        inputPtr += 8;
+
+        /* Compute magnitude squared: real^2 + imag^2 */
+        float32x4_t magSquared =
+            vmlaq_f32(vmulq_f32(input.val[0], input.val[0]), input.val[1], input.val[1]);
+
+        uint32x4_t compareResults = vcgtq_f32(magSquared, maxMagSquared);
+
+        maxValuesIndex = vbslq_f32(compareResults, currentIndexes, maxValuesIndex);
+        maxMagSquared = vmaxq_f32(magSquared, maxMagSquared);
+
+        currentIndexes = vaddq_f32(currentIndexes, indexIncrementValues);
+    }
+
+    __VOLK_ATTR_ALIGNED(16) float maxValuesBuffer[4];
+    __VOLK_ATTR_ALIGNED(16) float maxIndexesBuffer[4];
+
+    vst1q_f32(maxValuesBuffer, maxMagSquared);
+    vst1q_f32(maxIndexesBuffer, maxValuesIndex);
+
+    for (unsigned i = 0; i < 4; i++) {
+        if (maxValuesBuffer[i] > max) {
+            index = maxIndexesBuffer[i];
+            max = maxValuesBuffer[i];
+        }
+    }
+
+    number = quarterPoints * 4;
+    for (; number < num_points; number++) {
+        float real = *inputPtr++;
+        float imag = *inputPtr++;
+        float magSquared = real * real + imag * imag;
+        if (magSquared > max) {
+            index = (float)number;
+            max = magSquared;
+        }
+    }
+    target[0] = (uint16_t)index;
+}
+#endif /* LV_HAVE_NEON */
+
 #ifdef LV_HAVE_RVV
 #include <float.h>
 #include <riscv_vector.h>
@@ -494,8 +558,20 @@ volk_32fc_index_max_16u_rvv(uint16_t* target, const lv_32fc_t* src0, uint32_t nu
     float max = __riscv_vfmv_f(__riscv_vfredmax(RISCV_SHRINK4(vfmax, f, 32, vmax),
                                                 __riscv_vfmv_v_f_f32m1(0, 1),
                                                 __riscv_vsetvlmax_e32m1()));
-    vbool8_t m = __riscv_vmfeq(vmax, max, vl);
-    *target = __riscv_vmv_x(__riscv_vslidedown(vmaxi, __riscv_vfirst(m, vl), vl));
+    // Find minimum index among lanes with max value
+    // Note: mask type mismatch (vbool8_t vs vbool4_t) prevents using vmerge,
+    // so we use scalar comparison
+    __attribute__((aligned(32))) float values[128];
+    __attribute__((aligned(32))) uint16_t indices[128];
+    __riscv_vse32(values, vmax, vl);
+    __riscv_vse16(indices, vmaxi, vl);
+    uint16_t min_idx = UINT16_MAX;
+    for (size_t i = 0; i < vl; i++) {
+        if (values[i] == max && indices[i] < min_idx) {
+            min_idx = indices[i];
+        }
+    }
+    *target = min_idx;
 }
 #endif /*LV_HAVE_RVV*/
 
@@ -525,8 +601,18 @@ static inline void volk_32fc_index_max_16u_rvvseg(uint16_t* target,
     float max = __riscv_vfmv_f(__riscv_vfredmax(RISCV_SHRINK4(vfmax, f, 32, vmax),
                                                 __riscv_vfmv_v_f_f32m1(0, 1),
                                                 __riscv_vsetvlmax_e32m1()));
-    vbool8_t m = __riscv_vmfeq(vmax, max, vl);
-    *target = __riscv_vmv_x(__riscv_vslidedown(vmaxi, __riscv_vfirst(m, vl), vl));
+    // Find minimum index among lanes with max value
+    __attribute__((aligned(32))) float values[128];
+    __attribute__((aligned(32))) uint16_t indices[128];
+    __riscv_vse32(values, vmax, vl);
+    __riscv_vse16(indices, vmaxi, vl);
+    uint16_t min_idx = UINT16_MAX;
+    for (size_t i = 0; i < vl; i++) {
+        if (values[i] == max && indices[i] < min_idx) {
+            min_idx = indices[i];
+        }
+    }
+    *target = min_idx;
 }
 #endif /*LV_HAVE_RVVSEG*/
 
