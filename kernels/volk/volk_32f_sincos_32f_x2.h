@@ -65,9 +65,9 @@
 #ifdef LV_HAVE_GENERIC
 
 static inline void volk_32f_sincos_32f_x2_generic(float* sinVector,
-                                                float* cosVector,
-                                                const float* inVector,
-                                                unsigned int num_points)
+                                                  float* cosVector,
+                                                  const float* inVector,
+                                                  unsigned int num_points)
 {
     for (unsigned int i = 0; i < num_points; i++) {
         sinVector[i] = sinf(inVector[i]);
@@ -82,9 +82,9 @@ static inline void volk_32f_sincos_32f_x2_generic(float* sinVector,
 #include <volk/volk_avx512_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_a_avx512f(float* sinVector,
-                                                  float* cosVector,
-                                                  const float* inVector,
-                                                  unsigned int num_points)
+                                                    float* cosVector,
+                                                    const float* inVector,
+                                                    unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -127,17 +127,21 @@ static inline void volk_32f_sincos_32f_x2_a_avx512f(float* sinVector,
         __mmask16 sin_swap = _mm512_cmpeq_epi32_mask(n_and_1, ones);
         __m512 sin_result = _mm512_mask_blend_ps(sin_swap, sin_r, cos_r);
         __mmask16 sin_neg = _mm512_cmpeq_epi32_mask(n_and_2, twos);
-        sin_result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(sin_result), sin_neg,
-                                  _mm512_castps_si512(sin_result), sign_bit));
+        sin_result =
+            _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(sin_result),
+                                                      sin_neg,
+                                                      _mm512_castps_si512(sin_result),
+                                                      sign_bit));
 
         // For cos: swap when n&1, negate when (n+1)&2
         __mmask16 cos_swap = sin_swap;
         __m512 cos_result = _mm512_mask_blend_ps(cos_swap, cos_r, sin_r);
         __mmask16 cos_neg = _mm512_cmpeq_epi32_mask(n_plus_1_and_2, twos);
-        cos_result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(cos_result), cos_neg,
-                                  _mm512_castps_si512(cos_result), sign_bit));
+        cos_result =
+            _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(cos_result),
+                                                      cos_neg,
+                                                      _mm512_castps_si512(cos_result),
+                                                      sign_bit));
 
         _mm512_store_ps(sinPtr, sin_result);
         _mm512_store_ps(cosPtr, cos_result);
@@ -160,9 +164,9 @@ static inline void volk_32f_sincos_32f_x2_a_avx512f(float* sinVector,
 #include <volk/volk_avx2_fma_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_a_avx2_fma(float* sinVector,
-                                                   float* cosVector,
-                                                   const float* inVector,
-                                                   unsigned int num_points)
+                                                     float* cosVector,
+                                                     const float* inVector,
+                                                     unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -233,9 +237,9 @@ static inline void volk_32f_sincos_32f_x2_a_avx2_fma(float* sinVector,
 #include <volk/volk_avx2_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_a_avx2(float* sinVector,
-                                               float* cosVector,
-                                               const float* inVector,
-                                               unsigned int num_points)
+                                                 float* cosVector,
+                                                 const float* inVector,
+                                                 unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -306,9 +310,9 @@ static inline void volk_32f_sincos_32f_x2_a_avx2(float* sinVector,
 #include <volk/volk_sse_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_a_sse4_1(float* sinVector,
-                                                 float* cosVector,
-                                                 const float* inVector,
-                                                 unsigned int num_points)
+                                                   float* cosVector,
+                                                   const float* inVector,
+                                                   unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -385,9 +389,9 @@ static inline void volk_32f_sincos_32f_x2_a_sse4_1(float* sinVector,
 #include <volk/volk_avx512_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_u_avx512f(float* sinVector,
-                                                  float* cosVector,
-                                                  const float* inVector,
-                                                  unsigned int num_points)
+                                                    float* cosVector,
+                                                    const float* inVector,
+                                                    unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -430,17 +434,21 @@ static inline void volk_32f_sincos_32f_x2_u_avx512f(float* sinVector,
         __mmask16 sin_swap = _mm512_cmpeq_epi32_mask(n_and_1, ones);
         __m512 sin_result = _mm512_mask_blend_ps(sin_swap, sin_r, cos_r);
         __mmask16 sin_neg = _mm512_cmpeq_epi32_mask(n_and_2, twos);
-        sin_result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(sin_result), sin_neg,
-                                  _mm512_castps_si512(sin_result), sign_bit));
+        sin_result =
+            _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(sin_result),
+                                                      sin_neg,
+                                                      _mm512_castps_si512(sin_result),
+                                                      sign_bit));
 
         // For cos: swap when n&1, negate when (n+1)&2
         __mmask16 cos_swap = sin_swap;
         __m512 cos_result = _mm512_mask_blend_ps(cos_swap, cos_r, sin_r);
         __mmask16 cos_neg = _mm512_cmpeq_epi32_mask(n_plus_1_and_2, twos);
-        cos_result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(cos_result), cos_neg,
-                                  _mm512_castps_si512(cos_result), sign_bit));
+        cos_result =
+            _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(cos_result),
+                                                      cos_neg,
+                                                      _mm512_castps_si512(cos_result),
+                                                      sign_bit));
 
         _mm512_storeu_ps(sinPtr, sin_result);
         _mm512_storeu_ps(cosPtr, cos_result);
@@ -463,9 +471,9 @@ static inline void volk_32f_sincos_32f_x2_u_avx512f(float* sinVector,
 #include <volk/volk_avx2_fma_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_u_avx2_fma(float* sinVector,
-                                                   float* cosVector,
-                                                   const float* inVector,
-                                                   unsigned int num_points)
+                                                     float* cosVector,
+                                                     const float* inVector,
+                                                     unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -536,9 +544,9 @@ static inline void volk_32f_sincos_32f_x2_u_avx2_fma(float* sinVector,
 #include <volk/volk_avx2_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_u_avx2(float* sinVector,
-                                               float* cosVector,
-                                               const float* inVector,
-                                               unsigned int num_points)
+                                                 float* cosVector,
+                                                 const float* inVector,
+                                                 unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -609,9 +617,9 @@ static inline void volk_32f_sincos_32f_x2_u_avx2(float* sinVector,
 #include <volk/volk_sse_intrinsics.h>
 
 static inline void volk_32f_sincos_32f_x2_u_sse4_1(float* sinVector,
-                                                 float* cosVector,
-                                                 const float* inVector,
-                                                 unsigned int num_points)
+                                                   float* cosVector,
+                                                   const float* inVector,
+                                                   unsigned int num_points)
 {
     float* sinPtr = sinVector;
     float* cosPtr = cosVector;
@@ -683,9 +691,9 @@ static inline void volk_32f_sincos_32f_x2_u_sse4_1(float* sinVector,
 
 /* NEON polynomial-based sincos with shared argument reduction */
 static inline void volk_32f_sincos_32f_x2_neon(float* sinVector,
-                                                   float* cosVector,
-                                                   const float* inVector,
-                                                   unsigned int num_points)
+                                               float* cosVector,
+                                               const float* inVector,
+                                               unsigned int num_points)
 {
     // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
     const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);
@@ -731,16 +739,16 @@ static inline void volk_32f_sincos_32f_x2_neon(float* sinVector,
         // Sin result: use cos when n&1, negate when n&2
         float32x4_t sin_result = vbslq_f32(swap_mask, cos_r, sin_r);
         uint32x4_t sin_neg = vceqq_s32(n_and_2, twos);
-        sin_result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(sin_result),
-            vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
+        sin_result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(sin_result),
+                      vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
 
         // Cos result: use sin when n&1, negate when (n+1)&2
         float32x4_t cos_result = vbslq_f32(swap_mask, sin_r, cos_r);
         uint32x4_t cos_neg = vceqq_s32(n_plus_1_and_2, twos);
-        cos_result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(cos_result),
-            vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
+        cos_result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(cos_result),
+                      vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
 
         vst1q_f32(sinVector, sin_result);
         vst1q_f32(cosVector, cos_result);
@@ -803,16 +811,16 @@ static inline void volk_32f_sincos_32f_x2_neonv8(float* sinVector,
         // Sin result: use cos when n&1, negate when n&2
         float32x4_t sin_result = vbslq_f32(swap_mask, cos_r, sin_r);
         uint32x4_t sin_neg = vceqq_s32(n_and_2, twos);
-        sin_result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(sin_result),
-            vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
+        sin_result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(sin_result),
+                      vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
 
         // Cos result: use sin when n&1, negate when (n+1)&2
         float32x4_t cos_result = vbslq_f32(swap_mask, sin_r, cos_r);
         uint32x4_t cos_neg = vceqq_s32(n_plus_1_and_2, twos);
-        cos_result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(cos_result),
-            vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
+        cos_result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(cos_result),
+                      vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
 
         vst1q_f32(sinVector, sin_result);
         vst1q_f32(cosVector, cos_result);

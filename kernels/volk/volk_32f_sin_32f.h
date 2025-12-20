@@ -69,8 +69,8 @@
 #include <volk/volk_avx512_intrinsics.h>
 
 static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
-                                                   const float* inVector,
-                                                   unsigned int num_points)
+                                              const float* inVector,
+                                              unsigned int num_points)
 {
     float* sinPtr = sinVector;
     const float* inPtr = inVector;
@@ -116,9 +116,10 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
 
         // neg_mask: where n&2 != 0, we negate the result (use integer xor for AVX512F)
         __mmask16 neg_mask = _mm512_cmpeq_epi32_mask(n_and_2, twos);
-        result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(result), neg_mask,
-                                  _mm512_castps_si512(result), sign_bit));
+        result = _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(result),
+                                                           neg_mask,
+                                                           _mm512_castps_si512(result),
+                                                           sign_bit));
 
         _mm512_store_ps(sinPtr, result);
         inPtr += 16;
@@ -136,9 +137,8 @@ static inline void volk_32f_sin_32f_a_avx512f(float* sinVector,
 #include <immintrin.h>
 #include <volk/volk_avx2_fma_intrinsics.h>
 
-static inline void volk_32f_sin_32f_a_avx2_fma(float* bVector,
-                                                   const float* aVector,
-                                                   unsigned int num_points)
+static inline void
+volk_32f_sin_32f_a_avx2_fma(float* bVector, const float* aVector, unsigned int num_points)
 {
     float* bPtr = bVector;
     const float* aPtr = aVector;
@@ -203,9 +203,8 @@ static inline void volk_32f_sin_32f_a_avx2_fma(float* bVector,
 #include <immintrin.h>
 #include <volk/volk_avx2_intrinsics.h>
 
-static inline void volk_32f_sin_32f_a_avx2(float* bVector,
-                                               const float* aVector,
-                                               unsigned int num_points)
+static inline void
+volk_32f_sin_32f_a_avx2(float* bVector, const float* aVector, unsigned int num_points)
 {
     float* bPtr = bVector;
     const float* aPtr = aVector;
@@ -270,9 +269,8 @@ static inline void volk_32f_sin_32f_a_avx2(float* bVector,
 #include <smmintrin.h>
 #include <volk/volk_sse_intrinsics.h>
 
-static inline void volk_32f_sin_32f_a_sse4_1(float* bVector,
-                                                  const float* aVector,
-                                                  unsigned int num_points)
+static inline void
+volk_32f_sin_32f_a_sse4_1(float* bVector, const float* aVector, unsigned int num_points)
 {
     float* bPtr = bVector;
     const float* aPtr = aVector;
@@ -344,8 +342,8 @@ static inline void volk_32f_sin_32f_a_sse4_1(float* bVector,
 #include <volk/volk_avx512_intrinsics.h>
 
 static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
-                                                   const float* inVector,
-                                                   unsigned int num_points)
+                                              const float* inVector,
+                                              unsigned int num_points)
 {
     float* sinPtr = sinVector;
     const float* inPtr = inVector;
@@ -391,9 +389,10 @@ static inline void volk_32f_sin_32f_u_avx512f(float* sinVector,
 
         // neg_mask: where n&2 != 0, we negate the result (use integer xor for AVX512F)
         __mmask16 neg_mask = _mm512_cmpeq_epi32_mask(n_and_2, twos);
-        result = _mm512_castsi512_ps(
-            _mm512_mask_xor_epi32(_mm512_castps_si512(result), neg_mask,
-                                  _mm512_castps_si512(result), sign_bit));
+        result = _mm512_castsi512_ps(_mm512_mask_xor_epi32(_mm512_castps_si512(result),
+                                                           neg_mask,
+                                                           _mm512_castps_si512(result),
+                                                           sign_bit));
 
         _mm512_storeu_ps(sinPtr, result);
         inPtr += 16;
@@ -422,8 +421,8 @@ volk_32f_sin_32f_u_avx2_fma(float* bVector, const float* aVector, unsigned int n
 
     // Constants for Cody-Waite argument reduction
     // n = round(x * 2/pi), then r = x - n * pi/2
-    const __m256 two_over_pi = _mm256_set1_ps(0x1.45f306p-1f);  // 2/pi
-    const __m256 pi_over_2_hi = _mm256_set1_ps(0x1.921fb6p+0f); // pi/2 high
+    const __m256 two_over_pi = _mm256_set1_ps(0x1.45f306p-1f);    // 2/pi
+    const __m256 pi_over_2_hi = _mm256_set1_ps(0x1.921fb6p+0f);   // pi/2 high
     const __m256 pi_over_2_lo = _mm256_set1_ps(-0x1.777a5cp-25f); // pi/2 low
 
     const __m256i ones = _mm256_set1_epi32(1);
@@ -435,7 +434,7 @@ volk_32f_sin_32f_u_avx2_fma(float* bVector, const float* aVector, unsigned int n
 
         // Argument reduction: n = round(x * 2/pi)
         __m256 n_f = _mm256_round_ps(_mm256_mul_ps(x, two_over_pi),
-                                      _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                     _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
         __m256i n = _mm256_cvtps_epi32(n_f);
 
         // r = x - n * (pi/2), using extended precision
@@ -477,9 +476,8 @@ volk_32f_sin_32f_u_avx2_fma(float* bVector, const float* aVector, unsigned int n
 #include <immintrin.h>
 #include <volk/volk_avx2_intrinsics.h>
 
-static inline void volk_32f_sin_32f_u_avx2(float* bVector,
-                                               const float* aVector,
-                                               unsigned int num_points)
+static inline void
+volk_32f_sin_32f_u_avx2(float* bVector, const float* aVector, unsigned int num_points)
 {
     float* bPtr = bVector;
     const float* aPtr = aVector;
@@ -545,9 +543,8 @@ static inline void volk_32f_sin_32f_u_avx2(float* bVector,
 #include <smmintrin.h>
 #include <volk/volk_sse_intrinsics.h>
 
-static inline void volk_32f_sin_32f_u_sse4_1(float* bVector,
-                                                  const float* aVector,
-                                                  unsigned int num_points)
+static inline void
+volk_32f_sin_32f_u_sse4_1(float* bVector, const float* aVector, unsigned int num_points)
 {
     float* bPtr = bVector;
     const float* aPtr = aVector;
@@ -634,8 +631,8 @@ static inline void
 volk_32f_sin_32f_neon(float* bVector, const float* aVector, unsigned int num_points)
 {
     // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
-    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);   // 2/pi
-    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);  // pi/2 high
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);    // 2/pi
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);   // pi/2 high
     const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f); // pi/2 low
 
     const int32x4_t ones = vdupq_n_s32(1);
@@ -677,9 +674,9 @@ volk_32f_sin_32f_neon(float* bVector, const float* aVector, unsigned int num_poi
         float32x4_t result = vbslq_f32(swap_mask, cos_r, sin_r);
 
         uint32x4_t neg_mask = vceqq_s32(n_and_2, twos);
-        result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(result),
-            vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
+        result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(result),
+                      vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
 
         vst1q_f32(bVector, result);
         bVector += 4;
@@ -700,8 +697,8 @@ static inline void
 volk_32f_sin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_points)
 {
     // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
-    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);   // 2/pi
-    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);  // pi/2 high
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);    // 2/pi
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);   // pi/2 high
     const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f); // pi/2 low
 
     const int32x4_t ones = vdupq_n_s32(1);
@@ -737,9 +734,9 @@ volk_32f_sin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_p
         float32x4_t result = vbslq_f32(swap_mask, cos_r, sin_r);
 
         uint32x4_t neg_mask = vceqq_s32(n_and_2, twos);
-        result = vreinterpretq_f32_u32(veorq_u32(
-            vreinterpretq_u32_f32(result),
-            vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
+        result = vreinterpretq_f32_u32(
+            veorq_u32(vreinterpretq_u32_f32(result),
+                      vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
 
         vst1q_f32(bVector, result);
         bVector += 4;
