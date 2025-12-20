@@ -962,6 +962,72 @@ volk_32f_sin_32f_neon(float* bVector, const float* aVector, unsigned int num_poi
 
 #endif /* LV_HAVE_NEON */
 
+#ifdef LV_HAVE_NEON
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+
+/* NEON polynomial-based sin using Cody-Waite argument reduction */
+static inline void
+volk_32f_sin_32f_neon_var(float* bVector, const float* aVector, unsigned int num_points)
+{
+    // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);   // 2/pi
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);  // pi/2 high
+    const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f); // pi/2 low
+
+    const int32x4_t ones = vdupq_n_s32(1);
+    const int32x4_t twos = vdupq_n_s32(2);
+    const float32x4_t sign_bit = vdupq_n_f32(-0.0f);
+    const float32x4_t half = vdupq_n_f32(0.5f);
+    const float32x4_t neg_half = vdupq_n_f32(-0.5f);
+    const float32x4_t fzeroes = vdupq_n_f32(0.0f);
+
+    unsigned int number = 0;
+    const unsigned int quarterPoints = num_points / 4;
+
+    for (; number < quarterPoints; number++) {
+        float32x4_t x = vld1q_f32(aVector);
+        aVector += 4;
+
+        // n = round(x * 2/pi) - emulate round-to-nearest for ARMv7
+        float32x4_t scaled = vmulq_f32(x, two_over_pi);
+        uint32x4_t is_neg = vcltq_f32(scaled, fzeroes);
+        float32x4_t adj = vbslq_f32(is_neg, neg_half, half);
+        float32x4_t n_f = vcvtq_f32_s32(vcvtq_s32_f32(vaddq_f32(scaled, adj)));
+        int32x4_t n = vcvtq_s32_f32(n_f);
+
+        // r = x - n * (pi/2) using extended precision
+        float32x4_t r = vmlsq_f32(x, n_f, pi_over_2_hi);
+        r = vmlsq_f32(r, n_f, pi_over_2_lo);
+
+        // Evaluate sin and cos polynomials
+        float32x4_t sin_r = _vsin_poly_f32(r);
+        float32x4_t cos_r = _vcos_poly_f32(r);
+
+        // Quadrant-based reconstruction:
+        // n&1 == 0: use sin_r, n&1 == 1: use cos_r
+        // n&2 == 0: positive, n&2 == 2: negative
+        int32x4_t n_and_1 = vandq_s32(n, ones);
+        int32x4_t n_and_2 = vandq_s32(n, twos);
+
+        uint32x4_t swap_mask = vceqq_s32(n_and_1, ones);
+        float32x4_t result = vbslq_f32(swap_mask, cos_r, sin_r);
+
+        uint32x4_t neg_mask = vceqq_s32(n_and_2, twos);
+        result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(result),
+            vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
+
+        vst1q_f32(bVector, result);
+        bVector += 4;
+    }
+
+    for (number = quarterPoints * 4; number < num_points; number++) {
+        *bVector++ = sinf(*aVector++);
+    }
+}
+#endif /* LV_HAVE_NEON */
+
 #ifdef LV_HAVE_NEONV8
 #include <arm_neon.h>
 
@@ -1055,6 +1121,67 @@ volk_32f_sin_32f_neonv8(float* bVector, const float* aVector, unsigned int num_p
 
     /* Handle remaining */
     for (number = eighth_points * 8; number < num_points; number++) {
+        *bVector++ = sinf(*aVector++);
+    }
+}
+
+#endif /* LV_HAVE_NEONV8 */
+
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+
+/* NEONv8 polynomial-based sin using Cody-Waite argument reduction with FMA */
+static inline void
+volk_32f_sin_32f_neonv8_var(float* bVector, const float* aVector, unsigned int num_points)
+{
+    // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);   // 2/pi
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);  // pi/2 high
+    const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f); // pi/2 low
+
+    const int32x4_t ones = vdupq_n_s32(1);
+    const int32x4_t twos = vdupq_n_s32(2);
+    const float32x4_t sign_bit = vdupq_n_f32(-0.0f);
+
+    unsigned int number = 0;
+    const unsigned int quarterPoints = num_points / 4;
+
+    for (; number < quarterPoints; number++) {
+        float32x4_t x = vld1q_f32(aVector);
+        aVector += 4;
+
+        // n = round(x * 2/pi) using ARMv8 vrndnq_f32
+        float32x4_t n_f = vrndnq_f32(vmulq_f32(x, two_over_pi));
+        int32x4_t n = vcvtq_s32_f32(n_f);
+
+        // r = x - n * (pi/2) using FMA for extended precision
+        float32x4_t r = vfmsq_f32(x, n_f, pi_over_2_hi);
+        r = vfmsq_f32(r, n_f, pi_over_2_lo);
+
+        // Evaluate sin and cos polynomials using FMA
+        float32x4_t sin_r = _vsin_poly_neonv8(r);
+        float32x4_t cos_r = _vcos_poly_neonv8(r);
+
+        // Quadrant-based reconstruction:
+        // n&1 == 0: use sin_r, n&1 == 1: use cos_r
+        // n&2 == 0: positive, n&2 == 2: negative
+        int32x4_t n_and_1 = vandq_s32(n, ones);
+        int32x4_t n_and_2 = vandq_s32(n, twos);
+
+        uint32x4_t swap_mask = vceqq_s32(n_and_1, ones);
+        float32x4_t result = vbslq_f32(swap_mask, cos_r, sin_r);
+
+        uint32x4_t neg_mask = vceqq_s32(n_and_2, twos);
+        result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(result),
+            vandq_u32(neg_mask, vreinterpretq_u32_f32(sign_bit))));
+
+        vst1q_f32(bVector, result);
+        bVector += 4;
+    }
+
+    for (number = quarterPoints * 4; number < num_points; number++) {
         *bVector++ = sinf(*aVector++);
     }
 }

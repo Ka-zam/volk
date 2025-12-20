@@ -114,7 +114,7 @@ std::vector<volk_test_case_t> init_test_list(volk_test_params_t test_params)
     QA(VOLK_INIT_TEST(volk_32f_log2_32f, test_params.make_absolute(1.5e-5)))
     QA(VOLK_INIT_TEST(volk_32f_expfast_32f, test_params_inacc_tenth))
     QA(VOLK_INIT_TEST(volk_32f_sin_32f, test_params))
-    QA(VOLK_INIT_TEST(volk_32f_cos_32f, test_params_inacc))
+    QA(VOLK_INIT_TEST(volk_32f_cos_32f, test_params))
     QA(VOLK_INIT_TEST(volk_32f_tan_32f, test_params_inacc))
 
     volk_test_params_t test_params_atan(test_params);
