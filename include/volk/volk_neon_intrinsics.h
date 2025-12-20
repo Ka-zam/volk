@@ -1,6 +1,7 @@
 /* -*- c++ -*- */
 /*
  * Copyright 2015 Free Software Foundation, Inc.
+ * Copyright 2025 Magnus Lundmark <magnuslundmark@gmail.com> 
  *
  * This file is part of VOLK
  *
@@ -244,18 +245,6 @@ static inline float32x4x2_t _vsincosq_f32(float32x4_t x)
     sincos.val[1] = vbslq_f32(sign_mask_cos, yc, vnegq_f32(yc));
 
     return sincos;
-}
-
-static inline float32x4_t _vsinq_f32(float32x4_t x)
-{
-    const float32x4x2_t sincos = _vsincosq_f32(x);
-    return sincos.val[0];
-}
-
-static inline float32x4_t _vcosq_f32(float32x4_t x)
-{
-    const float32x4x2_t sincos = _vsincosq_f32(x);
-    return sincos.val[1];
 }
 
 static inline float32x4_t _vtanq_f32(float32x4_t x)
