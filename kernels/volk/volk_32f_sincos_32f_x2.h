@@ -681,35 +681,150 @@ static inline void volk_32f_sincos_32f_x2_u_sse4_1(float* sinVector,
 #include <arm_neon.h>
 #include <volk/volk_neon_intrinsics.h>
 
+/* NEON polynomial-based sincos with shared argument reduction */
 static inline void volk_32f_sincos_32f_x2_neon(float* sinVector,
-                                             float* cosVector,
-                                             const float* inVector,
-                                             unsigned int num_points)
+                                                   float* cosVector,
+                                                   const float* inVector,
+                                                   unsigned int num_points)
 {
+    // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);
+    const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f);
+
+    const int32x4_t ones = vdupq_n_s32(1);
+    const int32x4_t twos = vdupq_n_s32(2);
+    const float32x4_t sign_bit = vdupq_n_f32(-0.0f);
+    const float32x4_t half = vdupq_n_f32(0.5f);
+    const float32x4_t neg_half = vdupq_n_f32(-0.5f);
+    const float32x4_t fzeroes = vdupq_n_f32(0.0f);
+
     unsigned int number = 0;
-    unsigned int quarter_points = num_points / 4;
+    const unsigned int quarterPoints = num_points / 4;
 
-    for (number = 0; number < quarter_points; number++) {
+    for (; number < quarterPoints; number++) {
         float32x4_t x = vld1q_f32(inVector);
-        __VOLK_PREFETCH(inVector + 4);
-
-        float32x4_t sin_val = _vsinq_f32(x);
-        float32x4_t cos_val = _vcosq_f32(x);
-
-        vst1q_f32(sinVector, sin_val);
-        vst1q_f32(cosVector, cos_val);
-
         inVector += 4;
+
+        // n = round(x * 2/pi) - emulate round-to-nearest for ARMv7
+        float32x4_t scaled = vmulq_f32(x, two_over_pi);
+        uint32x4_t is_neg = vcltq_f32(scaled, fzeroes);
+        float32x4_t adj = vbslq_f32(is_neg, neg_half, half);
+        float32x4_t n_f = vcvtq_f32_s32(vcvtq_s32_f32(vaddq_f32(scaled, adj)));
+        int32x4_t n = vcvtq_s32_f32(n_f);
+
+        // r = x - n * (pi/2) using extended precision
+        float32x4_t r = vmlsq_f32(x, n_f, pi_over_2_hi);
+        r = vmlsq_f32(r, n_f, pi_over_2_lo);
+
+        // Evaluate sin and cos polynomials (shared for both outputs)
+        float32x4_t sin_r = _vsin_poly_f32(r);
+        float32x4_t cos_r = _vcos_poly_f32(r);
+
+        // Quadrant selection
+        int32x4_t n_and_1 = vandq_s32(n, ones);
+        int32x4_t n_and_2 = vandq_s32(n, twos);
+        int32x4_t n_plus_1_and_2 = vandq_s32(vaddq_s32(n, ones), twos);
+
+        uint32x4_t swap_mask = vceqq_s32(n_and_1, ones);
+
+        // Sin result: use cos when n&1, negate when n&2
+        float32x4_t sin_result = vbslq_f32(swap_mask, cos_r, sin_r);
+        uint32x4_t sin_neg = vceqq_s32(n_and_2, twos);
+        sin_result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(sin_result),
+            vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
+
+        // Cos result: use sin when n&1, negate when (n+1)&2
+        float32x4_t cos_result = vbslq_f32(swap_mask, sin_r, cos_r);
+        uint32x4_t cos_neg = vceqq_s32(n_plus_1_and_2, twos);
+        cos_result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(cos_result),
+            vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
+
+        vst1q_f32(sinVector, sin_result);
+        vst1q_f32(cosVector, cos_result);
         sinVector += 4;
         cosVector += 4;
     }
 
-    for (number = quarter_points * 4; number < num_points; number++) {
+    for (number = quarterPoints * 4; number < num_points; number++) {
         *sinVector++ = sinf(*inVector);
         *cosVector++ = cosf(*inVector++);
     }
 }
-
 #endif /* LV_HAVE_NEON */
+
+#ifdef LV_HAVE_NEONV8
+#include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
+
+/* NEONv8 polynomial-based sincos with FMA and shared argument reduction */
+static inline void volk_32f_sincos_32f_x2_neonv8(float* sinVector,
+                                                 float* cosVector,
+                                                 const float* inVector,
+                                                 unsigned int num_points)
+{
+    // Cody-Waite argument reduction: n = round(x * 2/pi), r = x - n * pi/2
+    const float32x4_t two_over_pi = vdupq_n_f32(0x1.45f306p-1f);
+    const float32x4_t pi_over_2_hi = vdupq_n_f32(0x1.921fb6p+0f);
+    const float32x4_t pi_over_2_lo = vdupq_n_f32(-0x1.777a5cp-25f);
+
+    const int32x4_t ones = vdupq_n_s32(1);
+    const int32x4_t twos = vdupq_n_s32(2);
+    const float32x4_t sign_bit = vdupq_n_f32(-0.0f);
+
+    unsigned int number = 0;
+    const unsigned int quarterPoints = num_points / 4;
+
+    for (; number < quarterPoints; number++) {
+        float32x4_t x = vld1q_f32(inVector);
+        inVector += 4;
+
+        // n = round(x * 2/pi) using ARMv8 vrndnq_f32
+        float32x4_t n_f = vrndnq_f32(vmulq_f32(x, two_over_pi));
+        int32x4_t n = vcvtq_s32_f32(n_f);
+
+        // r = x - n * (pi/2) using FMA for extended precision
+        float32x4_t r = vfmsq_f32(x, n_f, pi_over_2_hi);
+        r = vfmsq_f32(r, n_f, pi_over_2_lo);
+
+        // Evaluate sin and cos polynomials using FMA (shared for both outputs)
+        float32x4_t sin_r = _vsin_poly_neonv8(r);
+        float32x4_t cos_r = _vcos_poly_neonv8(r);
+
+        // Quadrant selection
+        int32x4_t n_and_1 = vandq_s32(n, ones);
+        int32x4_t n_and_2 = vandq_s32(n, twos);
+        int32x4_t n_plus_1_and_2 = vandq_s32(vaddq_s32(n, ones), twos);
+
+        uint32x4_t swap_mask = vceqq_s32(n_and_1, ones);
+
+        // Sin result: use cos when n&1, negate when n&2
+        float32x4_t sin_result = vbslq_f32(swap_mask, cos_r, sin_r);
+        uint32x4_t sin_neg = vceqq_s32(n_and_2, twos);
+        sin_result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(sin_result),
+            vandq_u32(sin_neg, vreinterpretq_u32_f32(sign_bit))));
+
+        // Cos result: use sin when n&1, negate when (n+1)&2
+        float32x4_t cos_result = vbslq_f32(swap_mask, sin_r, cos_r);
+        uint32x4_t cos_neg = vceqq_s32(n_plus_1_and_2, twos);
+        cos_result = vreinterpretq_f32_u32(veorq_u32(
+            vreinterpretq_u32_f32(cos_result),
+            vandq_u32(cos_neg, vreinterpretq_u32_f32(sign_bit))));
+
+        vst1q_f32(sinVector, sin_result);
+        vst1q_f32(cosVector, cos_result);
+        sinVector += 4;
+        cosVector += 4;
+    }
+
+    for (number = quarterPoints * 4; number < num_points; number++) {
+        *sinVector++ = sinf(*inVector);
+        *cosVector++ = cosf(*inVector++);
+    }
+}
+#endif /* LV_HAVE_NEONV8 */
 
 #endif /* INCLUDED_volk_32f_sincos_32f_x2_u_H */
