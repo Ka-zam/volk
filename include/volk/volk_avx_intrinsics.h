@@ -18,6 +18,20 @@
 #include <immintrin.h>
 
 /*
+ * Newton-Raphson refined reciprocal square root: 1/sqrt(a)
+ * One iteration doubles precision from ~12-bit to ~24-bit
+ * x1 = x0 * (1.5 - 0.5 * a * x0^2)
+ */
+static inline __m256 _mm256_rsqrt_nr_ps(const __m256 a)
+{
+    const __m256 HALF = _mm256_set1_ps(0.5f);
+    const __m256 THREE_HALFS = _mm256_set1_ps(1.5f);
+    const __m256 x0 = _mm256_rsqrt_ps(a);
+    return _mm256_mul_ps(x0, _mm256_sub_ps(THREE_HALFS,
+        _mm256_mul_ps(HALF, _mm256_mul_ps(_mm256_mul_ps(x0, x0), a))));
+}
+
+/*
  * Approximate arctan(x) via polynomial expansion
  * on the interval [-1, 1]
  *
