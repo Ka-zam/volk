@@ -153,6 +153,7 @@ volk_32f_invsqrt_32f_a_sse(float* cVector, const float* aVector, unsigned int nu
 
 #ifdef LV_HAVE_NEON
 #include <arm_neon.h>
+#include <volk/volk_neon_intrinsics.h>
 
 static inline void
 volk_32f_invsqrt_32f_neon(float* cVector, const float* aVector, unsigned int num_points)
@@ -162,10 +163,9 @@ volk_32f_invsqrt_32f_neon(float* cVector, const float* aVector, unsigned int num
 
     float* cPtr = cVector;
     const float* aPtr = aVector;
-    float32x4_t a_val, c_val;
     for (number = 0; number < quarter_points; ++number) {
-        a_val = vld1q_f32(aPtr);
-        c_val = vrsqrteq_f32(a_val);
+        float32x4_t a_val = vld1q_f32(aPtr);
+        float32x4_t c_val = _vinvsqrtq_f32(a_val);
         vst1q_f32(cPtr, c_val);
         aPtr += 4;
         cPtr += 4;
