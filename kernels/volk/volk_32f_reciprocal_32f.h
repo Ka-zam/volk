@@ -104,8 +104,9 @@ volk_32f_reciprocal_32f_M_rcp(float* out, const float* in, unsigned int num_poin
         float y = conv.f;
 
         // Newton-Raphson iterations: y = y * (2 - x * y)
-        y = y * (2.0f - x * y); // Iteration 1
-        y = y * (2.0f - x * y); // Iteration 2
+        y = y * (2.0f - x * y);
+        y = y * (2.0f - x * y);
+        y = y * (2.0f - x * y);
 
         // Branchless special case handling (±0 → ±Inf, ±Inf → ±0)
         result.f = y;
