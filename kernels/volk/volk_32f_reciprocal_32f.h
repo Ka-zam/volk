@@ -54,11 +54,69 @@
 #define INCLUDED_volk_32f_reciprocal_32f_a_H
 
 #ifdef LV_HAVE_GENERIC
+/*
+ * Double-precision reference implementation for accurate error measurement
+ * Uses volatile to prevent compiler from optimizing away the double-precision math
+ */
 static inline void
 volk_32f_reciprocal_32f_generic(float* out, const float* in, unsigned int num_points)
 {
     for (unsigned int i = 0; i < num_points; i++) {
+        volatile double x = (double)in[i];
+        volatile double result = 1.0 / x;
+        out[i] = (float)result;
+    }
+}
+#endif /* LV_HAVE_GENERIC */
+
+#ifdef LV_HAVE_GENERIC
+static inline void
+volk_32f_reciprocal_32f_float(float* out, const float* in, unsigned int num_points)
+{
+    for (unsigned int i = 0; i < num_points; i++) {
         out[i] = 1.f / in[i];
+    }
+}
+#endif /* LV_HAVE_GENERIC */
+
+/*
+ * Magic number reciprocal (Q_rcp) - similar to Q_rsqrt but for 1/x
+ * Uses bit manipulation for initial approximation followed by Newton-Raphson
+ */
+
+#ifdef LV_HAVE_GENERIC
+static inline void
+volk_32f_reciprocal_32f_M_rcp(float* out, const float* in, unsigned int num_points)
+{
+    union {
+        float f;
+        uint32_t u;
+    } conv, result;
+
+    for (unsigned int i = 0; i < num_points; i++) {
+        float x = in[i];
+        conv.f = x;
+        uint32_t input_bits = conv.u;
+
+        // Magic bit trick: approximate 1/x via integer subtraction
+        // log2(1/x) = -log2(x), so we manipulate the exponent bits
+        conv.u = 0x7EF311C3 - conv.u;
+        float y = conv.f;
+
+        // Newton-Raphson iterations: y = y * (2 - x * y)
+        y = y * (2.0f - x * y); // Iteration 1
+        y = y * (2.0f - x * y); // Iteration 2
+
+        // Branchless special case handling (±0 → ±Inf, ±Inf → ±0)
+        result.f = y;
+        uint32_t abs_bits = input_bits & 0x7FFFFFFF;
+        uint32_t sign_bit = input_bits & 0x80000000;
+        uint32_t is_zero = (uint32_t)(-(int32_t)(abs_bits == 0x00000000));
+        uint32_t is_inf = (uint32_t)(-(int32_t)(abs_bits == 0x7F800000));
+        result.u = (result.u & ~is_zero & ~is_inf) |
+                   ((0x7F800000 | sign_bit) & is_zero) | // ±0 → ±Inf
+                   (sign_bit & is_inf);                  // ±Inf → ±0
+        out[i] = result.f;
     }
 }
 #endif /* LV_HAVE_GENERIC */
