@@ -13,8 +13,8 @@
  * \b Overview
  *
  * Computes the reciprocal of the input vector and stores the results
- * in the output vector. For the AVX512F implementation the relative
- * error is < 2**(-14) = 6.1e-05
+ * in the output vector. SIMD implementations use fast approximate reciprocal
+ * instructions with Newton-Raphson refinement for near-single-precision accuracy.
  *
  * <b>Dispatcher Prototype</b>
  * \code
@@ -64,17 +64,16 @@ volk_32f_reciprocal_32f_generic(float* out, const float* in, unsigned int num_po
 #endif /* LV_HAVE_GENERIC */
 
 #ifdef LV_HAVE_SSE
-#include <xmmintrin.h>
+#include <volk/volk_sse_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_a_sse(float* out, const float* in, unsigned int num_points)
 {
-    const __m128 ONE = _mm_set_ps1(1.f);
     const unsigned int quarter_points = num_points / 4;
 
     for (unsigned int number = 0; number < quarter_points; number++) {
         __m128 x = _mm_load_ps(in);
         in += 4;
-        __m128 r = _mm_div_ps(ONE, x);
+        __m128 r = _mm_rcp_nr_ps(x);
         _mm_store_ps(out, r);
         out += 4;
     }
@@ -86,17 +85,16 @@ volk_32f_reciprocal_32f_a_sse(float* out, const float* in, unsigned int num_poin
 #endif /* LV_HAVE_SSE */
 
 #ifdef LV_HAVE_AVX
-#include <immintrin.h>
+#include <volk/volk_avx_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_a_avx(float* out, const float* in, unsigned int num_points)
 {
-    const __m256 ONE = _mm256_set1_ps(1.f);
     const unsigned int eighth_points = num_points / 8;
 
     for (unsigned int number = 0; number < eighth_points; number++) {
         __m256 x = _mm256_load_ps(in);
         in += 8;
-        __m256 r = _mm256_div_ps(ONE, x);
+        __m256 r = _mm256_rcp_nr_ps(x);
         _mm256_store_ps(out, r);
         out += 8;
     }
@@ -107,8 +105,29 @@ volk_32f_reciprocal_32f_a_avx(float* out, const float* in, unsigned int num_poin
 }
 #endif /* LV_HAVE_AVX */
 
+#ifdef LV_HAVE_AVX2
+#include <volk/volk_avx2_intrinsics.h>
+static inline void
+volk_32f_reciprocal_32f_a_avx2(float* out, const float* in, unsigned int num_points)
+{
+    const unsigned int eighth_points = num_points / 8;
+
+    for (unsigned int number = 0; number < eighth_points; number++) {
+        __m256 x = _mm256_load_ps(in);
+        in += 8;
+        __m256 r = _mm256_rcp_nr_avx2(x);
+        _mm256_store_ps(out, r);
+        out += 8;
+    }
+
+    const unsigned int done = eighth_points * 8;
+
+    volk_32f_reciprocal_32f_generic(out, in, num_points - done);
+}
+#endif /* LV_HAVE_AVX2 */
+
 #ifdef LV_HAVE_AVX512F
-#include <immintrin.h>
+#include <volk/volk_avx512_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_a_avx512(float* out, const float* in, unsigned int num_points)
 {
@@ -117,7 +136,7 @@ volk_32f_reciprocal_32f_a_avx512(float* out, const float* in, unsigned int num_p
     for (unsigned int number = 0; number < sixteenth_points; number++) {
         __m512 x = _mm512_load_ps(in);
         in += 16;
-        __m512 r = _mm512_rcp14_ps(x);
+        __m512 r = _mm512_rcp_nr_ps(x);
         _mm512_store_ps(out, r);
         out += 16;
     }
@@ -134,17 +153,16 @@ volk_32f_reciprocal_32f_a_avx512(float* out, const float* in, unsigned int num_p
 #define INCLUDED_volk_32f_reciprocal_32f_u_H
 
 #ifdef LV_HAVE_SSE
-#include <xmmintrin.h>
+#include <volk/volk_sse_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_u_sse(float* out, const float* in, unsigned int num_points)
 {
-    const __m128 ONE = _mm_set_ps1(1.f);
     const unsigned int quarter_points = num_points / 4;
 
     for (unsigned int number = 0; number < quarter_points; number++) {
         __m128 x = _mm_loadu_ps(in);
         in += 4;
-        __m128 r = _mm_div_ps(ONE, x);
+        __m128 r = _mm_rcp_nr_ps(x);
         _mm_storeu_ps(out, r);
         out += 4;
     }
@@ -156,17 +174,16 @@ volk_32f_reciprocal_32f_u_sse(float* out, const float* in, unsigned int num_poin
 #endif /* LV_HAVE_SSE */
 
 #ifdef LV_HAVE_AVX
-#include <immintrin.h>
+#include <volk/volk_avx_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_u_avx(float* out, const float* in, unsigned int num_points)
 {
-    const __m256 ONE = _mm256_set1_ps(1.f);
     const unsigned int eighth_points = num_points / 8;
 
     for (unsigned int number = 0; number < eighth_points; number++) {
         __m256 x = _mm256_loadu_ps(in);
         in += 8;
-        __m256 r = _mm256_div_ps(ONE, x);
+        __m256 r = _mm256_rcp_nr_ps(x);
         _mm256_storeu_ps(out, r);
         out += 8;
     }
@@ -177,8 +194,29 @@ volk_32f_reciprocal_32f_u_avx(float* out, const float* in, unsigned int num_poin
 }
 #endif /* LV_HAVE_AVX */
 
+#ifdef LV_HAVE_AVX2
+#include <volk/volk_avx2_intrinsics.h>
+static inline void
+volk_32f_reciprocal_32f_u_avx2(float* out, const float* in, unsigned int num_points)
+{
+    const unsigned int eighth_points = num_points / 8;
+
+    for (unsigned int number = 0; number < eighth_points; number++) {
+        __m256 x = _mm256_loadu_ps(in);
+        in += 8;
+        __m256 r = _mm256_rcp_nr_avx2(x);
+        _mm256_storeu_ps(out, r);
+        out += 8;
+    }
+
+    const unsigned int done = eighth_points * 8;
+
+    volk_32f_reciprocal_32f_generic(out, in, num_points - done);
+}
+#endif /* LV_HAVE_AVX2 */
+
 #ifdef LV_HAVE_AVX512F
-#include <immintrin.h>
+#include <volk/volk_avx512_intrinsics.h>
 static inline void
 volk_32f_reciprocal_32f_u_avx512(float* out, const float* in, unsigned int num_points)
 {
@@ -187,7 +225,7 @@ volk_32f_reciprocal_32f_u_avx512(float* out, const float* in, unsigned int num_p
     for (unsigned int number = 0; number < sixteenth_points; number++) {
         __m512 x = _mm512_loadu_ps(in);
         in += 16;
-        __m512 r = _mm512_rcp14_ps(x);
+        __m512 r = _mm512_rcp_nr_ps(x);
         _mm512_storeu_ps(out, r);
         out += 16;
     }
@@ -205,7 +243,6 @@ static inline void
 volk_32f_reciprocal_32f_neonv8(float* out, const float* in, unsigned int num_points)
 {
     const unsigned int eighth_points = num_points / 8;
-    float32x4_t vOne = vdupq_n_f32(1.0f);
 
     for (unsigned int number = 0; number < eighth_points; number++) {
         float32x4_t x0 = vld1q_f32(in);
@@ -213,11 +250,21 @@ volk_32f_reciprocal_32f_neonv8(float* out, const float* in, unsigned int num_poi
         __VOLK_PREFETCH(in + 8);
         in += 8;
 
-        float32x4_t r0 = vdivq_f32(vOne, x0);
-        float32x4_t r1 = vdivq_f32(vOne, x1);
+        // Initial estimate: ~8-bit precision
+        float32x4_t y0_0 = vrecpeq_f32(x0);
+        float32x4_t y0_1 = vrecpeq_f32(x1);
 
-        vst1q_f32(out, r0);
-        vst1q_f32(out + 4, r1);
+        // Newton-Raphson iteration 1: y = y * vrecps(x, y)
+        // vrecps(a,b) computes 2 - a*b
+        y0_0 = vmulq_f32(y0_0, vrecpsq_f32(x0, y0_0));
+        y0_1 = vmulq_f32(y0_1, vrecpsq_f32(x1, y0_1));
+
+        // Newton-Raphson iteration 2 for full precision
+        y0_0 = vmulq_f32(y0_0, vrecpsq_f32(x0, y0_0));
+        y0_1 = vmulq_f32(y0_1, vrecpsq_f32(x1, y0_1));
+
+        vst1q_f32(out, y0_0);
+        vst1q_f32(out + 4, y0_1);
         out += 8;
     }
 

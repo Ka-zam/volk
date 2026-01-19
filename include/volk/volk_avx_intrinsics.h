@@ -18,6 +18,38 @@
 #include <immintrin.h>
 
 /*
+ * Newton-Raphson refined reciprocal: 1/x
+ * One iteration doubles precision from ~12-bit to ~24-bit
+ * y1 = y0 * (2 - x * y0)
+ * Handles edge cases: ±0 → ±Inf, ±Inf → ±0
+ * AVX-only: splits to 128-bit for integer compare
+ */
+static inline __m256 _mm256_rcp_nr_ps(const __m256 x)
+{
+    const __m256 TWO = _mm256_set1_ps(2.0f);
+    const __m256 y0 = _mm256_rcp_ps(x);
+    const __m256 y1 = _mm256_mul_ps(y0, _mm256_sub_ps(TWO, _mm256_mul_ps(x, y0)));
+
+    // Blend y0 for ±0/±Inf, y1 otherwise (AVX: split to 128-bit halves)
+    const __m128i ABS_MASK = _mm_set1_epi32(0x7FFFFFFF);
+    const __m128i INF_BITS = _mm_set1_epi32(0x7F800000);
+    const __m128i zero_si = _mm_setzero_si128();
+
+    __m128i x_lo = _mm256_castsi256_si128(_mm256_castps_si256(x));
+    __m128i x_hi = _mm_castps_si128(_mm256_extractf128_ps(x, 1));
+    __m128i abs_lo = _mm_and_si128(x_lo, ABS_MASK);
+    __m128i abs_hi = _mm_and_si128(x_hi, ABS_MASK);
+
+    __m128 mask_lo = _mm_castsi128_ps(_mm_or_si128(
+        _mm_cmpeq_epi32(abs_lo, zero_si), _mm_cmpeq_epi32(abs_lo, INF_BITS)));
+    __m128 mask_hi = _mm_castsi128_ps(_mm_or_si128(
+        _mm_cmpeq_epi32(abs_hi, zero_si), _mm_cmpeq_epi32(abs_hi, INF_BITS)));
+    __m256 mask = _mm256_insertf128_ps(_mm256_castps128_ps256(mask_lo), mask_hi, 1);
+
+    return _mm256_blendv_ps(y1, y0, mask);
+}
+
+/*
  * Approximate arctan(x) via polynomial expansion
  * on the interval [-1, 1]
  *

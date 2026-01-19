@@ -18,6 +18,28 @@
 #include "volk/volk_avx_intrinsics.h"
 #include <immintrin.h>
 
+/*
+ * Newton-Raphson refined reciprocal: 1/x
+ * AVX2 version with native 256-bit integer operations
+ * y1 = y0 * (2 - x * y0)
+ * Handles edge cases: ±0 → ±Inf, ±Inf → ±0
+ */
+static inline __m256 _mm256_rcp_nr_avx2(const __m256 x)
+{
+    const __m256 TWO = _mm256_set1_ps(2.0f);
+    const __m256 y0 = _mm256_rcp_ps(x);
+    const __m256 y1 = _mm256_mul_ps(y0, _mm256_sub_ps(TWO, _mm256_mul_ps(x, y0)));
+
+    // Blend y0 for ±0/±Inf, y1 otherwise
+    const __m256i ABS_MASK = _mm256_set1_epi32(0x7FFFFFFF);
+    const __m256i INF_BITS = _mm256_set1_epi32(0x7F800000);
+    const __m256i x_abs = _mm256_and_si256(_mm256_castps_si256(x), ABS_MASK);
+    const __m256i is_zero = _mm256_cmpeq_epi32(x_abs, _mm256_setzero_si256());
+    const __m256i is_inf = _mm256_cmpeq_epi32(x_abs, INF_BITS);
+    const __m256 mask = _mm256_castsi256_ps(_mm256_or_si256(is_zero, is_inf));
+    return _mm256_blendv_ps(y1, y0, mask);
+}
+
 static inline __m256 _mm256_real(const __m256 z1, const __m256 z2)
 {
     const __m256i permute_mask = _mm256_set_epi32(7, 6, 3, 2, 5, 4, 1, 0);

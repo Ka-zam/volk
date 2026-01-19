@@ -15,7 +15,30 @@
 
 #ifndef INCLUDE_VOLK_VOLK_SSE_INTRINSICS_H_
 #define INCLUDE_VOLK_VOLK_SSE_INTRINSICS_H_
+#include <emmintrin.h>
 #include <xmmintrin.h>
+
+/*
+ * Newton-Raphson refined reciprocal: 1/x
+ * One iteration doubles precision from ~12-bit to ~24-bit
+ * y1 = y0 * (2 - x * y0)
+ * Handles edge cases: ±0 → ±Inf, ±Inf → ±0
+ */
+static inline __m128 _mm_rcp_nr_ps(const __m128 x)
+{
+    const __m128 TWO = _mm_set1_ps(2.0f);
+    const __m128 y0 = _mm_rcp_ps(x);
+    const __m128 y1 = _mm_mul_ps(y0, _mm_sub_ps(TWO, _mm_mul_ps(x, y0)));
+
+    // Blend y0 for ±0/±Inf (where NR produces NaN), y1 otherwise
+    const __m128i ABS_MASK = _mm_set1_epi32(0x7FFFFFFF);
+    const __m128i INF_BITS = _mm_set1_epi32(0x7F800000);
+    const __m128i x_abs = _mm_and_si128(_mm_castps_si128(x), ABS_MASK);
+    const __m128i is_zero = _mm_cmpeq_epi32(x_abs, _mm_setzero_si128());
+    const __m128i is_inf = _mm_cmpeq_epi32(x_abs, INF_BITS);
+    const __m128 mask = _mm_castsi128_ps(_mm_or_si128(is_zero, is_inf));
+    return _mm_or_ps(_mm_and_ps(mask, y0), _mm_andnot_ps(mask, y1));
+}
 
 /*
  * Approximate arctan(x) via polynomial expansion

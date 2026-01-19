@@ -17,6 +17,28 @@
 #include <immintrin.h>
 
 ////////////////////////////////////////////////////////////////////////
+// Newton-Raphson refined reciprocal: 1/x
+// One iteration doubles precision from ~14-bit (rcp14) to ~28-bit
+// y1 = y0 * (2 - x * y0) = y0 * fnmadd(x, y0, 2)
+// Handles edge cases: ±0 → ±Inf, ±Inf → ±0
+// Requires AVX512F
+////////////////////////////////////////////////////////////////////////
+static inline __m512 _mm512_rcp_nr_ps(const __m512 x)
+{
+    const __m512 TWO = _mm512_set1_ps(2.0f);
+    const __m512 y0 = _mm512_rcp14_ps(x);
+    const __m512 y1 = _mm512_mul_ps(y0, _mm512_fnmadd_ps(x, y0, TWO));
+
+    // Blend y0 for ±0/±Inf, y1 otherwise
+    const __m512i ABS_MASK = _mm512_set1_epi32(0x7FFFFFFF);
+    const __m512i INF_BITS = _mm512_set1_epi32(0x7F800000);
+    const __m512i x_abs = _mm512_and_si512(_mm512_castps_si512(x), ABS_MASK);
+    const __mmask16 is_special = _mm512_cmpeq_epi32_mask(x_abs, _mm512_setzero_si512()) |
+                                 _mm512_cmpeq_epi32_mask(x_abs, INF_BITS);
+    return _mm512_mask_blend_ps(is_special, y1, y0);
+}
+
+////////////////////////////////////////////////////////////////////////
 // Place real parts of two complex vectors in output
 // Requires AVX512F
 ////////////////////////////////////////////////////////////////////////
