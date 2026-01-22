@@ -84,6 +84,7 @@ std::vector<volk_test_case_t> init_test_list(volk_test_params_t test_params)
     QA(VOLK_INIT_TEST(volk_16i_32fc_dot_prod_32fc, test_params.make_absolute(1e-1)))
     QA(VOLK_INIT_TEST(volk_32f_accumulator_s32f, test_params.make_absolute(2e-2)))
     QA(VOLK_INIT_TEST(volk_32f_x2_add_32f, test_params))
+    QA(VOLK_INIT_PUPP(volk_32f_block_addpuppet_32f, volk_32f_block_add_32f, test_params))
 
     // Index kernels need identical values to test tie-breaking (first index wins)
     volk_test_params_t test_params_index(test_params.make_tol(0));
