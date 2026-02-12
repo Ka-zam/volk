@@ -200,4 +200,12 @@ volk_func_desc_t ${kern.name}_get_func_desc(void) {
     return desc;
 }
 
+% if kern.desc is not None:
+static const volk_kernel_desc_t __${kern.name}_desc = ${kern.desc.to_c_initializer()};
+
+const volk_kernel_desc_t* ${kern.name}_get_kernel_desc(void) {
+    return &__${kern.name}_desc;
+}
+% endif
+
 %endfor

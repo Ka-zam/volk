@@ -11,6 +11,8 @@ import re
 import sys
 import glob
 
+from volk_kernel_desc_parser import parse_kernel_desc
+
 ########################################################################
 # Strip comments from a c/cpp file.
 # Input is code string, output is code string without comments.
@@ -149,8 +151,13 @@ class kernel_class(object):
     def __init__(self, kernel_file):
         self.name = os.path.splitext(os.path.basename(kernel_file))[0]
         self.pname = self.name.replace('volk_', 'p_')
-        code = open(kernel_file, 'rb').read().decode("utf-8")
-        code = comment_remover(code)
+        raw_code = open(kernel_file, 'rb').read().decode("utf-8")
+
+        # Parse kernel descriptor before stripping comments (desc is in an
+        # #ifdef VOLK_KERNEL_DESC block, never compiled with proto-kernels)
+        self.desc = parse_kernel_desc(raw_code)
+
+        code = comment_remover(raw_code)
         sections = split_into_nested_ifdef_sections(code)
         self._impls = list()
         for header, section in sections:

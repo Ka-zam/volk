@@ -17,6 +17,8 @@
 #include <volk/volk_malloc.h>
 #include <volk/volk_version.h>
 
+#include <volk/volk_kernel_desc.h>
+
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -104,6 +106,11 @@ extern VOLK_API void ${kern.name}_manual(${kern.arglist_full}, const char* impl_
 
 //! Get description parameters for this kernel
 extern VOLK_API volk_func_desc_t ${kern.name}_get_func_desc(void);
+
+% if kern.desc is not None:
+//! Get kernel descriptor (metadata, domains, tolerances)
+extern VOLK_API const volk_kernel_desc_t* ${kern.name}_get_kernel_desc(void);
+% endif
 % endif
 
 %endfor
